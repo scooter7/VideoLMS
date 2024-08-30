@@ -4,7 +4,7 @@ from youtube_transcript_api import YouTubeTranscriptApi
 from youtubesearchpython import VideosSearch
 import os
 import openai
-from github import Github, InputGitTreeElement, GitCommit
+from github import Github, InputGitTreeElement
 from streamlit_extras.stylable_container import stylable_container
 
 # Set up Streamlit
@@ -50,12 +50,13 @@ if st.session_state["selected_topic"] is not None:
     for i, video in enumerate(st.session_state["videos"]):
         video_url = video["link"]
         st.video(video_url)
-        if st.button(f"Watched: {video['title']}", key=f"watched_{i}"):
+        if st.button(f"I've Watched: {video['title']}", key=f"watched_{i}"):
             st.session_state["watched_videos"][i] = True
 
-    # Check if all videos have been watched
-    if all(st.session_state["watched_videos"]):
-        st.session_state["all_watched"] = True
+    # Add "I've Watched All Videos" button to proceed
+    if st.session_state["watched_videos"] and all(st.session_state["watched_videos"]):
+        if st.button("I've Watched All Videos"):
+            st.session_state["all_watched"] = True
 
 # Transcribe Videos and Save to GitHub
 if st.session_state.get("all_watched", False):
