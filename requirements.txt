@@ -1,7 +1,8 @@
-import streamlit as st
-import json
-from yt2text import YT2text  # Correct import statement
-from youtubesearchpython import VideosSearch
-import os
-import openai
-from streamlit_extras.stylable_container import stylable_container
+streamlit
+openai
+PyGithub
+youtube-search-python
+pytube
+pillow
+streamlit-extras
+yt2text  # Ensure this is the correct package name; adjust if necessary
