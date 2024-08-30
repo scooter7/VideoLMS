@@ -6,6 +6,7 @@ import os
 import openai
 from github import Github, InputGitTreeElement
 from streamlit_extras.stylable_container import stylable_container
+import urllib.parse
 
 # Set up Streamlit
 st.set_page_config(page_title="Video Learning App", layout="wide")
@@ -35,6 +36,10 @@ def get_top_videos(topic):
     results = search.result()["result"]
     return results
 
+# Function to sanitize file names
+def sanitize_filename(name):
+    return urllib.parse.quote(name.replace(" ", "_").replace("/", "_"))
+
 # Topic selection
 if st.session_state["selected_topic"] is None:
     selected_topic = st.radio("Select a topic:", topics)
@@ -61,7 +66,7 @@ if st.session_state["selected_topic"] is not None:
 # Transcribe Videos and Save to GitHub
 if st.session_state.get("all_watched", False):
     st.write("All videos watched! Transcribing and saving...")
-    topic_folder = f"Transcripts/{st.session_state['selected_topic'].replace(' ', '_')}/"
+    topic_folder = f"Transcripts/{sanitize_filename(st.session_state['selected_topic'])}/"
     
     # Create a tree element to create the folder
     tree_element = InputGitTreeElement(
@@ -92,7 +97,8 @@ if st.session_state.get("all_watched", False):
         video_id = video["id"]
         transcription = YouTubeTranscriptApi.get_transcript(video_id)
         transcription_text = " ".join([item['text'] for item in transcription])
-        file_path = f"{topic_folder}/{video_id}_transcription.txt"
+        file_name = sanitize_filename(f"{video_id}_transcription.txt")
+        file_path = f"{topic_folder}/{file_name}"
         repo.create_file(file_path, f"Add transcription for {video['title']}", transcription_text, branch="main")
 
     st.success("Transcriptions saved to GitHub!")
