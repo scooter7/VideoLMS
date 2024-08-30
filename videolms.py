@@ -35,6 +35,9 @@ def get_top_videos(topic):
     search = VideosSearch(topic, limit=20)  # Increase limit to improve chances of finding suitable videos
     results = search.result()["result"]
 
+    st.write("Raw search results:")
+    st.write(results)  # Debugging: Show raw search results
+
     filtered_videos = []
     for video in results:
         video_duration = video.get("duration")
@@ -61,6 +64,9 @@ def get_top_videos(topic):
             except (TranscriptsDisabled, NoTranscriptFound):
                 continue
 
+    st.write("Filtered videos with transcripts:")
+    st.write(filtered_videos)  # Debugging: Show filtered videos
+
     return filtered_videos
 
 # Function to sanitize and encode file names
@@ -78,7 +84,7 @@ if st.session_state["selected_topic"] is None:
         st.session_state["watched_videos"] = [False] * len(st.session_state["videos"])
 
 # Display videos and "Watched" buttons
-if st.session_state["selected_topic"] is not None:
+if st.session_state["selected_topic"] is not None and st.session_state["videos"]:
     st.write(f"Topic: {st.session_state['selected_topic']}")
     for i, video in enumerate(st.session_state["videos"]):
         video_url = video["link"]
@@ -90,6 +96,8 @@ if st.session_state["selected_topic"] is not None:
     if st.session_state["watched_videos"] and all(st.session_state["watched_videos"]):
         if st.button("I've Watched All Videos"):
             st.session_state["all_watched"] = True
+else:
+    st.write("No videos found for this topic. Please try a different topic or adjust the criteria.")
 
 # Transcribe Videos and Save to GitHub
 if st.session_state.get("all_watched", False):
