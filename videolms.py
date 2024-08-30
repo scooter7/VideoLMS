@@ -1,6 +1,6 @@
 import streamlit as st
 import json
-from youtube_video_processing import YT2text
+from yt2text import YT2text  # Ensure this is the correct import
 from youtubesearchpython import VideosSearch
 import os
 import openai
@@ -24,9 +24,14 @@ topics = ["Communication Skills", "Conflict Resolution Skills", "Time Management
 # Topic selection
 selected_topic = st.radio("Select a topic:", topics)
 
+# Function to retrieve top YouTube videos
+def get_top_videos(topic):
+    search = VideosSearch(topic, limit=5)
+    results = search.result()["result"]
+    return results
+
 # Button to start the video retrieval process
 if st.button("Find Videos"):
-    # Logic to search for YouTube videos goes here
     st.session_state["selected_topic"] = selected_topic
     videos = get_top_videos(selected_topic)
     for video in videos:
@@ -38,12 +43,6 @@ if st.button("Find Videos"):
     # Check if all videos have been watched
     if all([st.session_state.get(f"watched_{video['id']}", False) for video in videos]):
         st.session_state["all_watched"] = True
-
-# Function to retrieve top YouTube videos
-def get_top_videos(topic):
-    search = VideosSearch(topic, limit=5)
-    results = search.result()["result"]
-    return results
 
 # Transcribe Videos and Save to GitHub
 if st.session_state.get("all_watched", False):
