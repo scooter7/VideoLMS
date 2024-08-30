@@ -4,7 +4,7 @@ import yt2text  # Corrected import statement
 from youtubesearchpython import VideosSearch
 import os
 import openai
-from github import Github, InputGitTreeElement
+from github import Github, InputGitTreeElement, GitCommit
 from streamlit_extras.stylable_container import stylable_container
 
 # Set up Streamlit
@@ -76,9 +76,9 @@ if st.session_state.get("all_watched", False):
     # Create the tree with the folder and placeholder file
     tree = repo.create_git_tree([tree_element], base_tree)
 
-    # Get the latest commit from the repository
-    parent_commit = repo.get_commits()[0]
-    
+    # Get the latest commit and convert it to a GitCommit object
+    parent_commit = repo.get_commit(sha=repo.get_commits()[0].sha).commit
+
     # Create the commit
     commit = repo.create_git_commit(
         message="Create topic folder and .keep file",
