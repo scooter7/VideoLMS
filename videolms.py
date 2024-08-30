@@ -1,6 +1,6 @@
 import streamlit as st
 import json
-import yt2text
+from yt2text import YT2text  # Ensure this is the correct import
 from youtubesearchpython import VideosSearch
 import os
 import openai
@@ -20,29 +20,6 @@ repo = github.get_repo(repo_name)
 
 # Define available topics
 topics = ["Communication Skills", "Conflict Resolution Skills", "Time Management Skills"]
-
-# Initialize session state
-if "selected_topic" not in st.session_state:
-    st.session_state["selected_topic"] = None
-if "videos" not in st.session_state:
-    st.session_state["videos"] = []
-if "watched_videos" not in st.session_state:
-    st.session_state["watched_videos"] = []
-if "all_watched" not in st.session_state:
-    st.session_state["all_watched"] = False
-if "transcription_errors" not in st.session_state:
-    st.session_state["transcription_errors"] = False
-
-# Topic selection
-if st.session_state["selected_topic"] is None:
-    selected_topic = st.radio("Select a topic:", topics)
-
-    if st.button("Find Videos"):
-        st.session_state["selected_topic"] = selected_topic
-        st.session_state["videos"] = get_top_videos(selected_topic)
-        st.session_state["watched_videos"] = [False] * len(st.session_state["videos"])
-        if not st.session_state["videos"]:
-            st.session_state["transcription_errors"] = True
 
 # Function to retrieve top YouTube videos
 def get_top_videos(topic):
@@ -80,6 +57,29 @@ def get_top_videos(topic):
         return []
 
     return filtered_videos
+
+# Initialize session state
+if "selected_topic" not in st.session_state:
+    st.session_state["selected_topic"] = None
+if "videos" not in st.session_state:
+    st.session_state["videos"] = []
+if "watched_videos" not in st.session_state:
+    st.session_state["watched_videos"] = []
+if "all_watched" not in st.session_state:
+    st.session_state["all_watched"] = False
+if "transcription_errors" not in st.session_state:
+    st.session_state["transcription_errors"] = False
+
+# Topic selection
+if st.session_state["selected_topic"] is None:
+    selected_topic = st.radio("Select a topic:", topics)
+
+    if st.button("Find Videos"):
+        st.session_state["selected_topic"] = selected_topic
+        st.session_state["videos"] = get_top_videos(selected_topic)
+        st.session_state["watched_videos"] = [False] * len(st.session_state["videos"])
+        if not st.session_state["videos"]:
+            st.session_state["transcription_errors"] = True
 
 # Video Display and Watch Handling
 if st.session_state["selected_topic"] and not st.session_state["transcription_errors"]:
