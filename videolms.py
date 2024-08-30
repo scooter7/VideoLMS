@@ -35,9 +35,6 @@ def get_top_videos(topic):
     search = VideosSearch(topic, limit=20)  # Increase limit to improve chances of finding suitable videos
     results = search.result()["result"]
 
-    st.write("Raw search results:")
-    st.write(results)  # Debugging: Show raw search results
-
     filtered_videos = []
     for video in results:
         video_duration = video.get("duration")
@@ -64,9 +61,6 @@ def get_top_videos(topic):
             except (TranscriptsDisabled, NoTranscriptFound):
                 continue
 
-    st.write("Filtered videos with transcripts:")
-    st.write(filtered_videos)  # Debugging: Show filtered videos
-
     return filtered_videos
 
 # Function to sanitize and encode file names
@@ -87,8 +81,8 @@ if st.session_state["selected_topic"] is None:
 if st.session_state["selected_topic"] is not None and st.session_state["videos"]:
     st.write(f"Topic: {st.session_state['selected_topic']}")
     for i, video in enumerate(st.session_state["videos"]):
-        video_url = video["link"]
-        st.video(video_url)  # Display the video
+        video_url = f"https://www.youtube.com/watch?v={video['id']}"
+        st.video(video_url)  # Display the video using the correct link
         st.write(f"**Title:** {video['title']}")  # Display the title
         st.write(f"**Duration:** {video['duration']}")  # Display the duration
         st.write(f"**View Count:** {video['viewCount']['text']}")  # Display the view count
