@@ -63,9 +63,10 @@ def get_top_videos(topic):
 
     return filtered_videos
 
-# Function to sanitize file names
+# Function to sanitize and encode file names
 def sanitize_filename(name):
-    return urllib.parse.quote(name.replace(" ", "_").replace("/", "_"))
+    sanitized_name = name.replace(" ", "_").replace("/", "_")
+    return urllib.parse.quote(sanitized_name, safe='')
 
 # Topic selection
 if st.session_state["selected_topic"] is None:
