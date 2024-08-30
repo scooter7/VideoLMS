@@ -1,6 +1,6 @@
 import streamlit as st
 import json
-import yt2text
+import yt2text  # Corrected import statement
 from youtubesearchpython import VideosSearch
 import os
 import openai
@@ -26,8 +26,11 @@ if "videos" not in st.session_state:
 if "watched_videos" not in st.session_state:
     st.session_state["watched_videos"] = []
 
-# Define available topics
-topics = ["Communication Skills", "Conflict Resolution Skills", "Time Management Skills"]
+# Function to retrieve top YouTube videos
+def get_top_videos(topic):
+    search = VideosSearch(topic, limit=5)
+    results = search.result()["result"]
+    return results
 
 # Topic selection
 if st.session_state["selected_topic"] is None:
@@ -37,12 +40,6 @@ if st.session_state["selected_topic"] is None:
         st.session_state["selected_topic"] = selected_topic
         st.session_state["videos"] = get_top_videos(selected_topic)
         st.session_state["watched_videos"] = [False] * len(st.session_state["videos"])
-
-# Function to retrieve top YouTube videos
-def get_top_videos(topic):
-    search = VideosSearch(topic, limit=5)
-    results = search.result()["result"]
-    return results
 
 # Display videos and "Watched" buttons
 if st.session_state["selected_topic"] is not None:
@@ -65,7 +62,7 @@ if st.session_state.get("all_watched", False):
     
     for i, video in enumerate(st.session_state["videos"]):
         video_id = video["id"]
-        transcription = yt2test.YT2text().extract(video_id=video_id)
+        transcription = yt2text.YT2text().extract(video_id=video_id)
         file_path = f"Transcripts/{topic_folder}/{video_id}_transcription.txt"
         repo.create_file(file_path, f"Add transcription for {video['title']}", transcription)
 
@@ -77,7 +74,7 @@ if st.session_state.get("all_watched", False):
     questions = []
 
     for i, video in enumerate(st.session_state["videos"]):
-        transcription = yt2test.YT2text().extract(video_id=video["id"])
+        transcription = yt2text.YT2text().extract(video_id=video["id"])
         prompt = f"Based on the following content, create 10 quiz questions:\n\n{transcription}"
         client = openai.Client()
         response = client.chat.completions.create(
