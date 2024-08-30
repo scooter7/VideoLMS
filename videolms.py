@@ -71,7 +71,7 @@ if st.session_state.get("all_watched", False):
     )
     
     # Get the base tree from the main branch
-    base_tree = repo.get_git_tree(sha="main").sha
+    base_tree = repo.get_git_tree(sha="main")
     
     # Create the tree with the folder and placeholder file
     tree = repo.create_git_tree([tree_element], base_tree)
