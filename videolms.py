@@ -88,7 +88,10 @@ if st.session_state["selected_topic"] is not None and st.session_state["videos"]
     st.write(f"Topic: {st.session_state['selected_topic']}")
     for i, video in enumerate(st.session_state["videos"]):
         video_url = video["link"]
-        st.video(video_url)
+        st.video(video_url)  # Display the video
+        st.write(f"**Title:** {video['title']}")  # Display the title
+        st.write(f"**Duration:** {video['duration']}")  # Display the duration
+        st.write(f"**View Count:** {video['viewCount']['text']}")  # Display the view count
         if st.button(f"I've Watched: {video['title']}", key=f"watched_{i}"):
             st.session_state["watched_videos"][i] = True
 
