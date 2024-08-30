@@ -4,7 +4,7 @@ import yt2text  # Corrected import statement
 from youtubesearchpython import VideosSearch
 import os
 import openai
-from github import Github
+from github import Github, InputGitTreeElement
 from streamlit_extras.stylable_container import stylable_container
 
 # Set up Streamlit
@@ -57,14 +57,30 @@ if st.session_state["selected_topic"] is not None:
 # Transcribe Videos and Save to GitHub
 if st.session_state.get("all_watched", False):
     st.write("All videos watched! Transcribing and saving...")
-    topic_folder = f"{st.session_state['selected_topic'].replace(' ', '_')}"
-    repo.create_git_tree([f"Transcripts/{topic_folder}/.keep"], repo.get_branch("main").commit)
+    topic_folder = f"Transcripts/{st.session_state['selected_topic'].replace(' ', '_')}/"
     
+    # Create a tree element to create the folder
+    tree_element = InputGitTreeElement(
+        path=f"{topic_folder}.keep",
+        mode="100644",  # regular file
+        type="blob",
+        content=""
+    )
+    
+    # Create the tree with the folder and placeholder file
+    base_tree = repo.get_git_tree("main")
+    tree = repo.create_git_tree([tree_element], base_tree)
+
+    # Commit the tree to the repository
+    parent = repo.get_commits()[0]
+    commit = repo.create_git_commit("Create topic folder and .keep file", tree, [parent])
+
+    # Save the transcriptions
     for i, video in enumerate(st.session_state["videos"]):
         video_id = video["id"]
         transcription = yt2text.YT2text().extract(video_id=video_id)
-        file_path = f"Transcripts/{topic_folder}/{video_id}_transcription.txt"
-        repo.create_file(file_path, f"Add transcription for {video['title']}", transcription)
+        file_path = f"{topic_folder}/{video_id}_transcription.txt"
+        repo.create_file(file_path, f"Add transcription for {video['title']}", transcription, branch="main")
 
     st.success("Transcriptions saved to GitHub!")
 
