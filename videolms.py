@@ -18,6 +18,9 @@ github = Github(st.secrets["github"]["token"])
 repo_name = "scooter7/VideoLMS"
 repo = github.get_repo(repo_name)
 
+# Define available topics
+topics = ["Communication Skills", "Conflict Resolution Skills", "Time Management Skills"]
+
 # State management initialization
 if "selected_topic" not in st.session_state:
     st.session_state["selected_topic"] = None
