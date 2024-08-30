@@ -23,7 +23,7 @@ topics = ["Communication Skills", "Conflict Resolution Skills", "Time Management
 
 # Function to retrieve top YouTube videos
 def get_top_videos(topic):
-    search = VideosSearch(topic, limit=30)
+    search = VideosSearch(topic, limit=50)  # Increase the limit to 50
     results = search.result()["result"]
 
     filtered_videos = []
@@ -42,7 +42,7 @@ def get_top_videos(topic):
         else:
             continue
 
-        if duration_seconds <= 900:  # Under 15 minutes
+        if duration_seconds <= 1200:  # Now under 20 minutes
             try:
                 # Check if transcript is available
                 YouTubeTranscriptApi.get_transcript(video_id)
