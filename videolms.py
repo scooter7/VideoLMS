@@ -1,6 +1,6 @@
 import streamlit as st
 import json
-import yt2text
+import yt2test  # Corrected import statement
 from youtubesearchpython import VideosSearch
 import os
 import openai
@@ -18,11 +18,25 @@ github = Github(st.secrets["github"]["token"])
 repo_name = "scooter7/VideoLMS"
 repo = github.get_repo(repo_name)
 
+# State management initialization
+if "selected_topic" not in st.session_state:
+    st.session_state["selected_topic"] = None
+if "videos" not in st.session_state:
+    st.session_state["videos"] = []
+if "watched_videos" not in st.session_state:
+    st.session_state["watched_videos"] = []
+
 # Define available topics
 topics = ["Communication Skills", "Conflict Resolution Skills", "Time Management Skills"]
 
 # Topic selection
-selected_topic = st.radio("Select a topic:", topics)
+if st.session_state["selected_topic"] is None:
+    selected_topic = st.radio("Select a topic:", topics)
+
+    if st.button("Find Videos"):
+        st.session_state["selected_topic"] = selected_topic
+        st.session_state["videos"] = get_top_videos(selected_topic)
+        st.session_state["watched_videos"] = [False] * len(st.session_state["videos"])
 
 # Function to retrieve top YouTube videos
 def get_top_videos(topic):
@@ -30,18 +44,17 @@ def get_top_videos(topic):
     results = search.result()["result"]
     return results
 
-# Button to start the video retrieval process
-if st.button("Find Videos"):
-    st.session_state["selected_topic"] = selected_topic
-    videos = get_top_videos(selected_topic)
-    for video in videos:
+# Display videos and "Watched" buttons
+if st.session_state["selected_topic"] is not None:
+    st.write(f"Topic: {st.session_state['selected_topic']}")
+    for i, video in enumerate(st.session_state["videos"]):
         video_url = video["link"]
         st.video(video_url)
-        if st.button(f"Watched: {video['title']}", key=video["id"]):
-            st.session_state[f"watched_{video['id']}"] = True
+        if st.button(f"Watched: {video['title']}", key=f"watched_{i}"):
+            st.session_state["watched_videos"][i] = True
 
     # Check if all videos have been watched
-    if all([st.session_state.get(f"watched_{video['id']}", False) for video in videos]):
+    if all(st.session_state["watched_videos"]):
         st.session_state["all_watched"] = True
 
 # Transcribe Videos and Save to GitHub
@@ -50,9 +63,9 @@ if st.session_state.get("all_watched", False):
     topic_folder = f"{st.session_state['selected_topic'].replace(' ', '_')}"
     repo.create_git_tree([f"Transcripts/{topic_folder}/.keep"], repo.get_branch("main").commit)
     
-    for video in videos:
+    for i, video in enumerate(st.session_state["videos"]):
         video_id = video["id"]
-        transcription = YT2text().extract(video_id=video_id)
+        transcription = yt2test.YT2text().extract(video_id=video_id)
         file_path = f"Transcripts/{topic_folder}/{video_id}_transcription.txt"
         repo.create_file(file_path, f"Add transcription for {video['title']}", transcription)
 
@@ -63,15 +76,16 @@ if st.session_state.get("all_watched", False):
     st.write("Generating quiz questions...")
     questions = []
 
-    for video in videos:
-        transcription = YT2text().extract(video_id=video["id"])
+    for i, video in enumerate(st.session_state["videos"]):
+        transcription = yt2test.YT2text().extract(video_id=video["id"])
         prompt = f"Based on the following content, create 10 quiz questions:\n\n{transcription}"
-        response = openai.Completion.create(
+        client = openai.Client()
+        response = client.chat.completions.create(
             model="gpt-4o-mini",
-            prompt=prompt,
+            messages=[{"role": "user", "content": prompt}],
             max_tokens=1000
         )
-        questions.append(response.choices[0].text.strip())
+        questions.append(response.choices[0].message['content'].strip())
 
     st.write("Here are your quiz questions:")
     for i, question in enumerate(questions):
