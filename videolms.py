@@ -1,6 +1,6 @@
 import streamlit as st
 import json
-from yt2text import YT2text  # Ensure this is the correct import
+from yt2text
 from youtubesearchpython import VideosSearch
 import os
 import openai
