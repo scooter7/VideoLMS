@@ -1,6 +1,6 @@
 import streamlit as st
 import json
-import yt2text  # Corrected import statement
+from youtube_transcript_api import YouTubeTranscriptApi
 from youtubesearchpython import VideosSearch
 import os
 import openai
@@ -89,9 +89,10 @@ if st.session_state.get("all_watched", False):
     # Save the transcriptions
     for i, video in enumerate(st.session_state["videos"]):
         video_id = video["id"]
-        transcription = yt2text.YT2text().extract(video_id=video_id)
+        transcription = YouTubeTranscriptApi.get_transcript(video_id)
+        transcription_text = " ".join([item['text'] for item in transcription])
         file_path = f"{topic_folder}/{video_id}_transcription.txt"
-        repo.create_file(file_path, f"Add transcription for {video['title']}", transcription, branch="main")
+        repo.create_file(file_path, f"Add transcription for {video['title']}", transcription_text, branch="main")
 
     st.success("Transcriptions saved to GitHub!")
 
@@ -101,8 +102,9 @@ if st.session_state.get("all_watched", False):
     questions = []
 
     for i, video in enumerate(st.session_state["videos"]):
-        transcription = yt2text.YT2text().extract(video_id=video["id"])
-        prompt = f"Based on the following content, create 10 quiz questions:\n\n{transcription}"
+        transcription = YouTubeTranscriptApi.get_transcript(video["id"])
+        transcription_text = " ".join([item['text'] for item in transcription])
+        prompt = f"Based on the following content, create 10 quiz questions:\n\n{transcription_text}"
         client = openai.Client()
         response = client.chat.completions.create(
             model="gpt-4o-mini",
