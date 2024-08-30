@@ -68,12 +68,19 @@ if st.session_state.get("all_watched", False):
     )
     
     # Create the tree with the folder and placeholder file
-    base_tree = repo.get_git_tree("main")
+    base_tree = repo.get_git_tree("main").sha
     tree = repo.create_git_tree([tree_element], base_tree)
 
-    # Commit the tree to the repository
-    parent = repo.get_commits()[0]
-    commit = repo.create_git_commit("Create topic folder and .keep file", tree, [parent])
+    # Get the latest commit from the repository
+    parent_commit = repo.get_commits()[0]
+    parent_commit_sha = parent_commit.sha
+
+    # Create the commit
+    commit = repo.create_git_commit(
+        message="Create topic folder and .keep file",
+        tree=tree,
+        parents=[parent_commit]
+    )
 
     # Save the transcriptions
     for i, video in enumerate(st.session_state["videos"]):
