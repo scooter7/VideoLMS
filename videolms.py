@@ -32,10 +32,12 @@ if "watched_videos" not in st.session_state:
 
 # Function to retrieve top YouTube videos with available transcripts
 def get_top_videos(topic):
-    search = VideosSearch(topic, limit=20)  # Increase limit to improve chances of finding suitable videos
+    search = VideosSearch(topic, limit=30)  # Increase limit to improve chances of finding suitable videos
     results = search.result()["result"]
 
     filtered_videos = []
+    fallback_videos = []
+
     for video in results:
         video_duration = video.get("duration")
         video_link = video.get("link")
@@ -50,16 +52,21 @@ def get_top_videos(topic):
         else:
             continue
 
-        # Check for subtitles and video duration under 15 minutes
+        # Check for video duration under 15 minutes
         if duration_seconds <= 900:  # 15 minutes
             try:
-                # Attempt to retrieve the transcript; skip video if not available
+                # Attempt to retrieve the transcript; add to primary list if available
                 YouTubeTranscriptApi.get_transcript(video_id)
                 filtered_videos.append(video)
                 if len(filtered_videos) == 5:  # We only need 5 videos
                     break
             except (TranscriptsDisabled, NoTranscriptFound):
-                continue
+                # Add to fallback list if no transcript available but duration is valid
+                fallback_videos.append(video)
+
+    # If no videos with transcripts were found, use the fallback list
+    if len(filtered_videos) == 0:
+        filtered_videos = fallback_videos[:5]  # Return the first 5 fallback videos
 
     return filtered_videos
 
