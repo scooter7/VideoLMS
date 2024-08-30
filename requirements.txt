@@ -1,0 +1,7 @@
+streamlit
+openai
+PyGithub
+youtube-search-python
+pytube
+pillow
+streamlit-extras
