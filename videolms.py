@@ -67,14 +67,15 @@ if st.session_state.get("all_watched", False):
         content=""
     )
     
+    # Get the base tree from the main branch
+    base_tree = repo.get_git_tree(sha="main").sha
+    
     # Create the tree with the folder and placeholder file
-    base_tree = repo.get_git_tree("main").sha
     tree = repo.create_git_tree([tree_element], base_tree)
 
     # Get the latest commit from the repository
     parent_commit = repo.get_commits()[0]
-    parent_commit_sha = parent_commit.sha
-
+    
     # Create the commit
     commit = repo.create_git_commit(
         message="Create topic folder and .keep file",
