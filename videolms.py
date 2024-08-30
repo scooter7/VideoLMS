@@ -1,6 +1,6 @@
 import streamlit as st
 import json
-from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled
+from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
 from youtubesearchpython import VideosSearch
 import os
 import openai
@@ -30,12 +30,11 @@ if "videos" not in st.session_state:
 if "watched_videos" not in st.session_state:
     st.session_state["watched_videos"] = []
 
-# Function to retrieve top YouTube videos
+# Function to retrieve top YouTube videos with available transcripts
 def get_top_videos(topic):
-    search = VideosSearch(topic, limit=15)  # Get more videos to filter
+    search = VideosSearch(topic, limit=20)  # Increase limit to improve chances of finding suitable videos
     results = search.result()["result"]
 
-    # Filter videos based on subtitles and duration
     filtered_videos = []
     for video in results:
         video_duration = video.get("duration")
@@ -54,11 +53,12 @@ def get_top_videos(topic):
         # Check for subtitles and video duration under 15 minutes
         if duration_seconds <= 900:  # 15 minutes
             try:
-                YouTubeTranscriptApi.get_transcript(video_id)  # This will raise TranscriptsDisabled if no subtitles
+                # Attempt to retrieve the transcript; skip video if not available
+                YouTubeTranscriptApi.get_transcript(video_id)
                 filtered_videos.append(video)
                 if len(filtered_videos) == 5:  # We only need 5 videos
                     break
-            except TranscriptsDisabled:
+            except (TranscriptsDisabled, NoTranscriptFound):
                 continue
 
     return filtered_videos
@@ -152,7 +152,7 @@ if st.session_state.get("all_watched", False):
                 max_tokens=1000
             )
             questions.append(response.choices[0].message['content'].strip())
-        except TranscriptsDisabled:
+        except (TranscriptsDisabled, NoTranscriptFound):
             st.error(f"Quiz generation failed for video {video['title']} due to unavailable transcription.")
 
     st.write("Here are your quiz questions:")
