@@ -36,13 +36,29 @@ def get_video_info(video_url: str) -> tuple:
 
 # Function to save the transcript to GitHub
 def save_transcript_to_github(repo, video_title, video_id, transcript_text):
+    file_path = f"Transcripts/{video_title.replace(' ', '_')}_{video_id}_transcription.txt"
     try:
-        file_path = f"Transcripts/{video_title.replace(' ', '_')}_{video_id}_transcription.txt"
-        repo.create_file(
-            file_path,
-            f"Add transcription for {video_title}",
-            transcript_text
-        )
+        existing_file = None
+        try:
+            existing_file = repo.get_contents(file_path)
+        except:
+            pass  # File doesn't exist
+
+        if existing_file:
+            # Update the existing file
+            repo.update_file(
+                file_path,
+                f"Update transcription for {video_title}",
+                transcript_text,
+                sha=existing_file.sha
+            )
+        else:
+            # Create a new file
+            repo.create_file(
+                file_path,
+                f"Add transcription for {video_title}",
+                transcript_text
+            )
         st.success(f"Transcription saved to GitHub at {file_path}")
     except Exception as e:
         st.error(f"Failed to save transcription to GitHub: {e}")
