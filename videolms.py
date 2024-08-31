@@ -21,7 +21,7 @@ repo = github.get_repo(repo_name)
 # Define available topics
 topics = ["Communication Skills", "Conflict Resolution Skills", "Time Management Skills"]
 
-# Function to retrieve top YouTube videos using pytube
+# Function to retrieve top YouTube videos using pytube and ensure they have transcripts
 def get_top_videos(topic):
     search = Search(topic)
     results = search.results
