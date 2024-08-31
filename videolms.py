@@ -2,18 +2,12 @@ import streamlit as st
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import TextFormatter
 from yt_dlp import YoutubeDL
-import openai
 from github import Github
-
-# Set up Streamlit app
-st.set_page_config(page_title="Video LMS", layout="wide")
-
-# Set up API keys
-openai.api_key = st.secrets["openai"]["api_key"]
+import re
 
 # Initialize GitHub client
 g = Github(st.secrets["github"]["token"])
-repo = g.get_repo("scooter7/your-repo-name")
+repo = g.get_repo("scooter7/VideoLMS")
 
 # Function to fetch transcript using youtube_transcript_api
 def fetch_transcript(video_id: str) -> str:
@@ -40,22 +34,28 @@ def get_video_info(video_url: str) -> tuple:
         thumbnail_url = thumbnails[-1]["url"] if thumbnails else None
         return title, description, thumbnail_url
 
-# Main app interface
-st.title("Video LMS - Learning Management System")
-
-# Video URL input
-video_url = st.text_input("Enter the YouTube video URL:")
-
-# Button to fetch video info and transcript
-if st.button("Fetch Video Info and Transcript"):
-    if not video_url:
-        st.warning("Please enter a YouTube video URL.")
-        st.stop()
-
+# Function to save the transcript to GitHub
+def save_transcript_to_github(repo, video_title, video_id, transcript_text):
     try:
-        # Extract video ID from the URL
-        video_id = re.search(r"(?<=v=)[^&#]+", video_url).group(0)
-        title, description, thumbnail_url = get_video_info(video_url)
+        file_path = f"Transcripts/{video_title.replace(' ', '_')}_{video_id}_transcription.txt"
+        repo.create_file(
+            file_path,
+            f"Add transcription for {video_title}",
+            transcript_text
+        )
+        st.success(f"Transcription saved to GitHub at {file_path}")
+    except Exception as e:
+        st.error(f"Failed to save transcription to GitHub: {e}")
+
+# Streamlit app interface
+st.header("YouTube Video Transcription and Quiz Generator")
+youtube_url = st.text_input("Enter YouTube URL:")
+
+if st.button("Fetch Video Info"):
+    if youtube_url:
+        video_id = re.search(r"v=([^&]+)", youtube_url).group(1)
+        title, description, thumbnail_url = get_video_info(youtube_url)
+        
         st.write(f"**Title:** {title}")
         st.write(f"**Description:** {description}")
         if thumbnail_url:
@@ -63,44 +63,26 @@ if st.button("Fetch Video Info and Transcript"):
 
         transcript = fetch_transcript(video_id)
         if transcript:
-            st.write("### Transcript:")
-            st.text_area("Transcript", transcript, height=300)
+            st.subheader("Transcript")
+            st.write(transcript)
+            
+            save_transcript_to_github(repo, title, video_id, transcript)
 
-            # Save transcript to GitHub
-            file_path = f"Transcriptions/{video_id}_transcription.txt"
-            repo.create_file(
-                path=file_path,
-                message=f"Add transcription for {title}",
-                content=transcript,
-                branch="main"
-            )
-            st.success("Transcript saved to GitHub!")
-
-            # Generate quiz questions
-            st.write("### Generating quiz questions...")
-            prompt = f"Based on the following content, create 10 quiz questions:\n\n{transcript}"
-            completion = openai.Completion.create(
-                model="text-davinci-003",
-                prompt=prompt,
-                max_tokens=150
-            )
-            quiz_questions = completion.choices[0].text.strip()
-            st.write("### Quiz Questions:")
-            st.write(quiz_questions)
-
-    except Exception as e:
-        st.error(f"Error processing the video: {e}")
-
-# Display quiz interface if quizzes are generated
-if "quiz_questions" in st.session_state:
-    st.subheader("Take the Quiz")
-    score = 0
-    for i, question in enumerate(st.session_state["quiz_questions"]):
-        answer = st.radio(f"Q{i+1}: {question['question']}", question["options"], key=f"quiz_{i}")
-        if st.button(f"Submit Q{i+1}", key=f"submit_{i}"):
-            if answer == question["correct_answer"]:
-                score += 1
-                st.success("Correct!")
-            else:
-                st.error("Incorrect.")
-    st.write(f"Your final score: {score}/{len(st.session_state['quiz_questions'])}")
+            st.subheader("Generate Quiz")
+            if st.button("Generate Quiz"):
+                prompt = f"Based on the following content, create 10 quiz questions:\n\n{transcript}"
+                client = OpenAI(api_key=st.secrets["openai"]["api_key"])
+                try:
+                    completion = client.chat.completions.create(
+                        model="gpt-4",
+                        messages=[
+                            {"role": "system", "content": "You are a helpful assistant."},
+                            {"role": "user", "content": prompt}
+                        ]
+                    )
+                    questions = completion.choices[0].message["content"].strip()
+                    st.write(questions)
+                except Exception as e:
+                    st.error(f"Failed to generate quiz: {e}")
+    else:
+        st.warning("Please enter a valid YouTube URL.")
