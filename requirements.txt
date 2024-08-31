@@ -1,8 +1,5 @@
 streamlit
-Pillow
 youtube-transcript-api
-youtube-search-python
-pytube
+yt-dlp
 openai
 github
-streamlit-extras
