@@ -151,14 +151,14 @@ if "quiz_questions" in st.session_state:
         user_answer = st.radio(f"Your answer for Question {idx+1}:", question["options"], key=f"q{idx}")
 
         if st.button(f"Submit Answer for Question {idx+1}", key=f"submit{idx}"):
-            # Ensure correct answer and user answer are clean for comparison
-            correct_answer_clean = question["answer"].strip().replace("**", "").lower()
-            selected_answer_clean = user_answer.strip().replace("**", "").lower()
+            # Clean the correct answer and user's selected answer
+            correct_answer_clean = question["answer"].replace("**", "").strip().lower()
+            selected_answer_clean = user_answer.replace("**", "").strip().lower()
 
             if selected_answer_clean == correct_answer_clean:
                 st.success("Correct!")
             else:
-                st.error(f"Incorrect. The correct answer was: **{question['answer']}**")
+                st.error(f"Incorrect. The correct answer was: **{question['answer'].replace('**', '').strip()}**")
         st.write("---")
 
 
