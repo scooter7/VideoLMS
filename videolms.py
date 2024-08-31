@@ -1,123 +1,95 @@
 import streamlit as st
-from youtube_video_processing import YT2text
-from github import Github
+from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api.formatters import TextFormatter
+from yt_dlp import YoutubeDL
 import openai
-import os
+from github import Github
 
 # Set up Streamlit app
 st.set_page_config(page_title="Video LMS", layout="wide")
 
-# Set up the OpenAI API key
+# Set up API keys
 openai.api_key = st.secrets["openai"]["api_key"]
 
 # Initialize GitHub client
 g = Github(st.secrets["github"]["token"])
 repo = g.get_repo("scooter7/your-repo-name")
 
-# Function to transcribe a video
-def transcribe_video(video_id, video_info=None):
-    yt2text = YT2text()
-
-    # Try to extract transcript using YT2text
+# Function to fetch transcript using youtube_transcript_api
+def fetch_transcript(video_id: str) -> str:
     try:
-        transcription = yt2text.extract(video_id=video_id)
-        return transcription
+        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        formatter = TextFormatter()
+        formatted_transcript = formatter.format_transcript(transcript)
+        return formatted_transcript
     except Exception as e:
-        st.warning(f"Initial transcription failed due to: {str(e)}. Trying Whisper...")
-    
-    # If transcription fails, use Whisper as fallback
-    try:
-        if video_info:
-            transcription = yt2text.extract_content_from_youtube_video_without_transcription(
-                video_id=video_id, video_info=video_info
-            )
-            return transcription
+        if "No transcript found" in str(e):
+            st.error("No transcript found for this video.")
         else:
-            st.error("Video info is required for Whisper transcription.")
-            return None
-    except Exception as e:
-        st.error(f"Transcription failed with Whisper due to: {str(e)}")
+            st.error(f"Failed to fetch transcript: {e}")
         return None
 
-# Function to retrieve top YouTube videos (modify this based on your video retrieval logic)
-def get_top_videos(topic):
-    # Implement your logic to retrieve top YouTube videos for the given topic
-    # Make sure to filter videos that have transcripts enabled
-    return []
+# Function to get video information using yt-dlp
+def get_video_info(video_url: str) -> tuple:
+    opts = {}
+    with YoutubeDL(opts) as yt:
+        info = yt.extract_info(video_url, download=False)
+        title = info.get("title", "")
+        description = info.get("description", "")
+        thumbnails = info.get("thumbnails", [])
+        thumbnail_url = thumbnails[-1]["url"] if thumbnails else None
+        return title, description, thumbnail_url
 
 # Main app interface
 st.title("Video LMS - Learning Management System")
 
-# Topic selection
-topics = ["Time Management", "Communication Skills", "Conflict Resolution Skills"]
-selected_topic = st.radio("Select a topic:", topics)
+# Video URL input
+video_url = st.text_input("Enter the YouTube video URL:")
 
-# Button to find videos
-if st.button("Find Videos"):
-    st.session_state["selected_topic"] = selected_topic
-    st.session_state["videos"] = get_top_videos(selected_topic)
-    st.session_state["watched_videos"] = [False] * len(st.session_state["videos"])
-
-    if not st.session_state["videos"]:
-        st.warning("No videos found with transcripts available. Please try a different topic or adjust the criteria.")
+# Button to fetch video info and transcript
+if st.button("Fetch Video Info and Transcript"):
+    if not video_url:
+        st.warning("Please enter a YouTube video URL.")
         st.stop()
 
-# Display videos and allow the user to mark them as watched
-if "videos" in st.session_state and st.session_state["videos"]:
-    for i, video in enumerate(st.session_state["videos"]):
-        st.video(video["link"])
-        if st.checkbox(f"I've watched this video ({video['title']})", key=f"watched_{i}"):
-            st.session_state["watched_videos"][i] = True
+    try:
+        # Extract video ID from the URL
+        video_id = re.search(r"(?<=v=)[^&#]+", video_url).group(0)
+        title, description, thumbnail_url = get_video_info(video_url)
+        st.write(f"**Title:** {title}")
+        st.write(f"**Description:** {description}")
+        if thumbnail_url:
+            st.image(thumbnail_url)
 
-# Button to start transcription and quiz generation after watching all videos
-if st.button("I've watched all videos"):
-    if all(st.session_state["watched_videos"]):
-        st.success("All videos watched! Transcribing and saving...")
+        transcript = fetch_transcript(video_id)
+        if transcript:
+            st.write("### Transcript:")
+            st.text_area("Transcript", transcript, height=300)
 
-        # Loop through each video, transcribe, and save the transcription
-        for i, video in enumerate(st.session_state["videos"]):
-            video_id = video["id"]
-            video_info = video  # Add any additional video information needed for Whisper
+            # Save transcript to GitHub
+            file_path = f"Transcriptions/{video_id}_transcription.txt"
+            repo.create_file(
+                path=file_path,
+                message=f"Add transcription for {title}",
+                content=transcript,
+                branch="main"
+            )
+            st.success("Transcript saved to GitHub!")
 
-            transcription = transcribe_video(video_id, video_info)
+            # Generate quiz questions
+            st.write("### Generating quiz questions...")
+            prompt = f"Based on the following content, create 10 quiz questions:\n\n{transcript}"
+            completion = openai.Completion.create(
+                model="text-davinci-003",
+                prompt=prompt,
+                max_tokens=150
+            )
+            quiz_questions = completion.choices[0].text.strip()
+            st.write("### Quiz Questions:")
+            st.write(quiz_questions)
 
-            if transcription:
-                # Save transcription to GitHub
-                file_path = f"Transcriptions/{selected_topic}/{video_id}_transcription.txt"
-                repo.create_file(
-                    path=file_path,
-                    message=f"Add transcription for {video['title']}",
-                    content=transcription,
-                    branch="main"
-                )
-            else:
-                st.error(f"Transcription failed for {video['title']}")
-
-        st.success("Transcriptions saved to GitHub!")
-
-        # Generate quiz questions
-        st.write("Generating quiz questions...")
-        for i, video in enumerate(st.session_state["videos"]):
-            video_id = video["id"]
-
-            if video_id in st.session_state:
-                transcription = st.session_state[video_id]
-                prompt = f"Based on the following content, create 10 quiz questions:\n\n{transcription}"
-                completion = openai.ChatCompletion.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": "You are a helpful assistant."},
-                        {"role": "user", "content": prompt}
-                    ]
-                )
-                quiz_questions = completion.choices[0].message["content"]
-                st.write(f"Quiz for {video['title']}:")
-                st.write(quiz_questions)
-            else:
-                st.error(f"Quiz generation failed for {video['title']} due to unavailable transcription.")
-
-    else:
-        st.warning("Please watch all videos before proceeding.")
+    except Exception as e:
+        st.error(f"Error processing the video: {e}")
 
 # Display quiz interface if quizzes are generated
 if "quiz_questions" in st.session_state:
