@@ -1,6 +1,7 @@
 import streamlit as st
 from youtube_transcript_api import YouTubeTranscriptApi
 from github import Github
+from yt_dlp import YoutubeDL
 import openai
 import random
 import base64
@@ -74,15 +75,17 @@ def search_videos(topic: str):
     }
     with YoutubeDL(opts) as ydl:
         search_results = ydl.extract_info(f"ytsearch10:{topic}", download=False)
-        videos = [
-            {
-                'id': entry['id'],
-                'title': entry['title'],
-                'url': entry['webpage_url']
-            }
-            for entry in search_results['entries']
-            if 'entries' in search_results and 'webpage_url' in entry
-        ]
+        videos = []
+        for entry in search_results.get('entries', []):
+            video_id = entry.get('id')
+            title = entry.get('title')
+            url = entry.get('webpage_url')
+            if video_id and title and url:
+                videos.append({
+                    'id': video_id,
+                    'title': title,
+                    'url': url
+                })
     return videos
 
 # Streamlit app interface
