@@ -14,13 +14,18 @@ client = openai
 # Function to generate quiz using GPT-4o-mini
 def generate_quiz(transcript):
     client.api_key = openai_api_key
-    prompt = f"Create a quiz with 5 questions based on this transcript: {transcript}"
+    prompt = (
+        f"Please create a quiz with 5 questions based on the following transcript:\n\n"
+        f"{transcript}\n\n"
+        f"The quiz should include a mix of multiple-choice and true/false questions. "
+        f"Each question should be followed by the correct answer."
+    )
+    
     completions = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}]
     )
     
-    # Extract the content correctly
     quiz = completions.choices[0].message.content
     return quiz
 
@@ -35,9 +40,6 @@ def load_csv_from_github():
 # Load the CSV file
 df = load_csv_from_github()
 
-# Print column names to verify
-st.write("Available columns:", df.columns)
-
 # Topic Selection
 topic = st.radio("Select a Topic", df['Topic'].unique())
 
@@ -49,4 +51,9 @@ for i, video in enumerate(videos):
         # Generate quiz
         transcript = df[df['URL'] == video]['Transcript'].values[0]
         quiz = generate_quiz(transcript)
+        
+        # Display the generated quiz
+        st.write("Quiz Generated from the Transcript:")
         st.write(quiz)
+
+        # Further code would be needed to make the quiz interactive
