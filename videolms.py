@@ -1,11 +1,9 @@
 import streamlit as st
-import json
 import os
 import openai
 from github import Github, GithubException
-from pytube import Search, YouTube
+from pytube import Search
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
-from streamlit_extras.stylable_container import stylable_container
 
 # Set up Streamlit
 st.set_page_config(page_title="Video Learning App", layout="wide")
@@ -68,7 +66,7 @@ def create_or_update_file(repo, path, message, content):
         else:
             raise
 
-# Topic selection
+# Initialize Streamlit session state
 if "selected_topic" not in st.session_state:
     st.session_state["selected_topic"] = None
 
@@ -78,8 +76,10 @@ if "videos" not in st.session_state:
 if "watched_videos" not in st.session_state:
     st.session_state["watched_videos"] = []
 
+# Topic selection
 selected_topic = st.radio("Select a topic:", topics)
 
+# Button to find videos
 if st.button("Find Videos"):
     st.session_state["selected_topic"] = selected_topic
     st.session_state["videos"] = get_top_videos(selected_topic)
@@ -87,7 +87,7 @@ if st.button("Find Videos"):
     if not st.session_state["videos"]:
         st.stop()
 
-# Display videos
+# Display videos if available
 if st.session_state["videos"]:
     for i, video in enumerate(st.session_state["videos"]):
         st.video(video["link"])
@@ -135,5 +135,3 @@ if all(st.session_state["watched_videos"]):
                     # Logic to check the correct answer goes here
                     score += 1  # This should be updated with actual checking logic
             st.write(f"Your score for {video['title']}: {score}/{len(questions)}")
-
-st.stop()
