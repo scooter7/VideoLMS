@@ -28,16 +28,20 @@ def fetch_transcript(video_id: str) -> str:
 # Function to transcribe video using Whisper
 def transcribe_with_whisper(video_url: str) -> str:
     try:
-        os.system(f"yt-dlp -f bestaudio --extract-audio --audio-format mp3 -o 'temp_audio.mp3' {video_url}")
-        audio_file = open("temp_audio.mp3", "rb")
-        transcript = openai.Audio.transcribe("whisper-1", audio_file)
-        return transcript['text']
+        audio_filename = "temp_audio.mp3"
+        os.system(f"yt-dlp -f bestaudio --extract-audio --audio-format mp3 -o {audio_filename} {video_url}")
+        if not os.path.exists(audio_filename):
+            raise FileNotFoundError("Audio file was not created. Check yt-dlp command.")
+
+        with open(audio_filename, "rb") as audio_file:
+            transcript = openai.Audio.transcribe("whisper-1", audio_file)
+            return transcript['text']
     except Exception as e:
         st.error(f"Failed to transcribe video using Whisper: {e}")
         return None
     finally:
-        if os.path.exists("temp_audio.mp3"):
-            os.remove("temp_audio.mp3")
+        if os.path.exists(audio_filename):
+            os.remove(audio_filename)
 
 # Function to save transcript to GitHub
 def save_transcript_to_github(filename: str, content: str):
