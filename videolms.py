@@ -1,14 +1,42 @@
 import streamlit as st
 from youtube_transcript_api import YouTubeTranscriptApi
 from github import Github
-from yt_dlp import YoutubeDL
 import openai
 import random
-import base64
+import requests
 
 # Initialize GitHub client
 g = Github(st.secrets["github"]["token"])
 repo = g.get_repo("scooter7/VideoLMS")
+
+# YouTube Data API setup
+YOUTUBE_API_KEY = st.secrets["youtube"]["api_key"]
+YOUTUBE_API_URL = "https://www.googleapis.com/youtube/v3"
+
+# Function to search for videos using YouTube Data API
+def search_videos(topic: str):
+    search_url = f"{YOUTUBE_API_URL}/search"
+    params = {
+        'part': 'snippet',
+        'q': topic,
+        'type': 'video',
+        'maxResults': 10,
+        'key': YOUTUBE_API_KEY
+    }
+    response = requests.get(search_url, params=params)
+    results = response.json()
+    
+    videos = []
+    for item in results.get('items', []):
+        video_id = item['id']['videoId']
+        title = item['snippet']['title']
+        url = f"https://www.youtube.com/watch?v={video_id}"
+        videos.append({
+            'id': video_id,
+            'title': title,
+            'url': url
+        })
+    return videos
 
 # Function to fetch transcript using youtube_transcript_api
 def fetch_transcript(video_id: str) -> str:
@@ -65,28 +93,6 @@ def generate_quiz_from_transcript(transcript):
             questions.append(create_question(sentence))
 
     return questions
-
-# Function to search for videos based on a topic using yt-dlp
-def search_videos(topic: str):
-    opts = {
-        'format': 'best',
-        'noplaylist': True,
-        'quiet': True
-    }
-    with YoutubeDL(opts) as ydl:
-        search_results = ydl.extract_info(f"ytsearch10:{topic}", download=False)
-        videos = []
-        for entry in search_results.get('entries', []):
-            video_id = entry.get('id')
-            title = entry.get('title')
-            url = entry.get('webpage_url')
-            if video_id and title and url:
-                videos.append({
-                    'id': video_id,
-                    'title': title,
-                    'url': url
-                })
-    return videos
 
 # Streamlit app interface
 st.header("YouTube Video Transcription and Quiz Generator")
