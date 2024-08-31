@@ -1,9 +1,6 @@
 streamlit
 openai
 PyGithub
-youtube-search-python
-pytube
-pillow
-streamlit-extras
-yt2text  # Ensure this is the correct package name; adjust if necessary
 youtube-transcript-api
+youtubesearchpython
+streamlit-extras
