@@ -63,6 +63,11 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
             max_tokens=500,
         )
         
+        # Check if the completions list is empty
+        if not completions.choices:
+            st.error("No response received from the API.")
+            return []
+
         # Extract the content from the response
         completion_content = completions.choices[0].message.content.strip()
         questions = completion_content.split("\n\n")
