@@ -26,6 +26,9 @@ def generate_quiz(transcript):
     )
     
     quiz_text = completions.choices[0].message.content
+    st.write("Raw GPT-4o-mini Response:")  # Debugging step
+    st.write(quiz_text)  # Output the raw text to help diagnose
+    
     return quiz_text
 
 # Function to parse the quiz text into a structured format
@@ -42,7 +45,7 @@ def parse_quiz(quiz_text):
             current_question = {"question": line, "options": [], "correct": None}
         elif line.startswith("a)") or line.startswith("b)") or line.startswith("c)") or line.startswith("d)"):
             current_question["options"].append(line)
-        elif line.startswith("Correct Answer:"):
+        elif "Correct Answer:" in line:
             current_question["correct"] = line.split("Correct Answer: ")[1].strip()
     
     if current_question:
