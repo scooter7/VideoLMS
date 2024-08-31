@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import requests
 import openai
 
 # Set your OpenAI API key
@@ -30,7 +29,7 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
             messages=[{"role": "user", "content": prompt}]
         )
 
-        completion_content = completions.choices[0].message["content"].strip()
+        completion_content = completions.choices[0].message.content.strip()
         questions = completion_content.split("\n\n")
 
         parsed_questions = []
@@ -68,11 +67,9 @@ df = load_csv_from_github()
 # Topic Selection
 topic = st.selectbox("Select a Topic", df['Topic'].unique())
 
-# Display transcript and generate quiz
+# Generate and display quiz without showing transcript
 if topic:
     transcript = df[df['Topic'] == topic]['Transcript'].values[0]
-    st.subheader("Transcript")
-    st.write(transcript)
 
     if st.button("Generate Quiz"):
         with st.spinner("Generating quiz..."):
