@@ -108,12 +108,13 @@ if st.session_state["videos"]:
             if transcription_text:
                 try:
                     prompt = f"Based on the following content, create 10 quiz questions:\n\n{transcription_text}"
-                    response = openai.Completion.create(
+                    client = openai.Client()
+                    completion = client.chat.completions.create(
                         model="gpt-4o-mini",
                         prompt=prompt,
                         max_tokens=1000
                     )
-                    questions = response.choices[0].text.strip().split("\n")
+                    questions = completion.choices[0].text.strip().split("\n")
                     st.session_state[f"questions_{i}"] = questions
                     st.success(f"Quiz questions generated for {video['title']}")
                 except Exception as e:
