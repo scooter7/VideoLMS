@@ -3,7 +3,7 @@ import json
 import os
 import openai
 from github import Github
-from yt2text import yt2text  # Ensure this is the correct import
+import yt2text
 from youtubesearchpython import VideosSearch
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
 from streamlit_extras.stylable_container import stylable_container
