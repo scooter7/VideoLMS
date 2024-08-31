@@ -8,6 +8,17 @@ from io import StringIO  # Import StringIO from io module
 openai_api_key = st.secrets["openai"]["api_key"]
 github_token = st.secrets["github"]["token"]
 
+# Function to generate quiz using GPT-4o-mini
+def generate_quiz(transcript):
+    openai.api_key = openai_api_key
+    prompt = f"Create a quiz with 5 questions based on this transcript: {transcript}"
+    completions = openai.ChatCompletion.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "system", "content": prompt}]
+    )
+    quiz = completions.choices[0].message["content"]
+    return quiz
+
 # Function to load the CSV from GitHub
 @st.cache_data
 def load_csv_from_github():
@@ -34,14 +45,3 @@ for i, video in enumerate(videos):
         transcript = df[df['URL'] == video]['Transcript'].values[0]  # Updated to 'Transcript'
         quiz = generate_quiz(transcript)
         st.write(quiz)
-
-# Function to generate quiz using GPT-4o-mini
-def generate_quiz(transcript):
-    openai.api_key = openai_api_key
-    prompt = f"Create a quiz with 5 questions based on this transcript: {transcript}"
-    completions = openai.ChatCompletion.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "system", "content": prompt}]
-    )
-    quiz = completions.choices[0].message["content"]
-    return quiz
