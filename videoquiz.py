@@ -31,11 +31,11 @@ def generate_quiz(transcript):
 # Function to parse the quiz text into a structured format
 def parse_quiz(quiz_text):
     questions = []
+    current_question = None
     lines = quiz_text.split("\n")
     
-    current_question = None
-    
     for line in lines:
+        line = line.strip()
         if line.startswith("Question"):
             if current_question:
                 questions.append(current_question)
@@ -43,7 +43,7 @@ def parse_quiz(quiz_text):
         elif line.startswith("a)") or line.startswith("b)") or line.startswith("c)") or line.startswith("d)"):
             current_question["options"].append(line)
         elif line.startswith("Correct Answer:"):
-            current_question["correct"] = line.split(":")[1].strip()
+            current_question["correct"] = line.split("Correct Answer: ")[1].strip()
     
     if current_question:
         questions.append(current_question)
@@ -75,17 +75,19 @@ for i, video in enumerate(videos):
         questions = parse_quiz(quiz_text)
         
         # Display the quiz interactively
-        st.write("Quiz Generated from the Transcript:")
-        score = 0
-        for idx, q in enumerate(questions):
-            st.write(q["question"])
-            user_answer = st.radio(f"Select your answer for Question {idx+1}", q["options"], key=f"q{idx}")
-            if st.button(f"Submit Answer for Question {idx+1}", key=f"submit{idx}"):
-                if user_answer.endswith(q["correct"]):
-                    st.success(f"Correct!")
-                    score += 1
-                else:
-                    st.error(f"Incorrect. The correct answer is {q['correct']}.")
-        
-        st.write(f"Your total score: {score}/{len(questions)}")
+        if questions:
+            st.write("Quiz Generated from the Transcript:")
+            score = 0
+            for idx, q in enumerate(questions):
+                st.write(q["question"])
+                user_answer = st.radio(f"Select your answer for Question {idx+1}", q["options"], key=f"q{idx}")
+                if st.button(f"Submit Answer for Question {idx+1}", key=f"submit{idx}"):
+                    if user_answer.endswith(q["correct"]):
+                        st.success(f"Correct!")
+                        score += 1
+                    else:
+                        st.error(f"Incorrect. The correct answer is {q['correct']}.")
+            st.write(f"Your total score: {score}/{len(questions)}")
+        else:
+            st.write("No quiz could be generated from the transcript.")
 
