@@ -36,22 +36,18 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
 
             parsed_questions = []
             for q in questions:
-                if "True or False" in q:
+                lines = q.split("\n")
+                if len(lines) >= 2:
+                    question_text = lines[0].strip()
+                    options = [line.strip() for line in lines[1:] if line.strip()]
+                    answer = options[-1].split(":")[1].strip("*").strip() if "Answer:" in options[-1] else None
+                    options = options[:-1] if answer else options
+
                     parsed_questions.append({
-                        "type": "true_false",
-                        "question": q.split("\n")[0],
-                        "options": ["True", "False"],
-                        "answer": "True" if "True" in q else "False"
+                        "question": question_text,
+                        "options": options,
+                        "answer": answer
                     })
-                else:
-                    parts = q.split("\n")
-                    if len(parts) >= 5:  # Ensure there are enough parts to form a valid question
-                        parsed_questions.append({
-                            "type": "mcq",
-                            "question": parts[0],
-                            "options": parts[1:5],
-                            "answer": parts[5].split(":")[1].strip("*").strip()  # Remove asterisks and whitespace
-                        })
 
             if not parsed_questions:
                 st.error("No valid quiz questions could be generated. Please try again with a different video.")
