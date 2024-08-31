@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import requests
 import openai
-from io import StringIO  # Import StringIO from io module
+from io import StringIO
 
 # Load secrets
 openai_api_key = st.secrets["openai"]["api_key"]
@@ -11,14 +11,13 @@ github_token = st.secrets["github"]["token"]
 # Initialize the OpenAI client
 client = openai
 
-# Function to generate quiz using GPT-4o-mini
+# Function to generate a quiz using GPT-4o-mini
 def generate_quiz(transcript):
     client.api_key = openai_api_key
     prompt = (
-        f"Please create a quiz with 5 questions based on the following transcript:\n\n"
-        f"{transcript}\n\n"
+        f"Based on the following transcript, please generate a quiz with 5 questions. "
         f"The quiz should include a mix of multiple-choice and true/false questions. "
-        f"Each question should be followed by the correct answer."
+        f"Each question should have options, and indicate the correct answer:\n\n{transcript}"
     )
     
     completions = client.chat.completions.create(
@@ -26,8 +25,30 @@ def generate_quiz(transcript):
         messages=[{"role": "user", "content": prompt}]
     )
     
-    quiz = completions.choices[0].message.content
-    return quiz
+    quiz_text = completions.choices[0].message.content
+    return quiz_text
+
+# Function to parse the quiz text into a structured format
+def parse_quiz(quiz_text):
+    questions = []
+    lines = quiz_text.split("\n")
+    
+    current_question = None
+    
+    for line in lines:
+        if line.startswith("Question"):
+            if current_question:
+                questions.append(current_question)
+            current_question = {"question": line, "options": [], "correct": None}
+        elif line.startswith("a)") or line.startswith("b)") or line.startswith("c)") or line.startswith("d)"):
+            current_question["options"].append(line)
+        elif line.startswith("Correct Answer:"):
+            current_question["correct"] = line.split(":")[1].strip()
+    
+    if current_question:
+        questions.append(current_question)
+    
+    return questions
 
 # Function to load the CSV from GitHub
 @st.cache_data
@@ -50,10 +71,21 @@ for i, video in enumerate(videos):
     if st.button(f"I've watched this video {i+1}"):
         # Generate quiz
         transcript = df[df['URL'] == video]['Transcript'].values[0]
-        quiz = generate_quiz(transcript)
+        quiz_text = generate_quiz(transcript)
+        questions = parse_quiz(quiz_text)
         
-        # Display the generated quiz
+        # Display the quiz interactively
         st.write("Quiz Generated from the Transcript:")
-        st.write(quiz)
+        score = 0
+        for idx, q in enumerate(questions):
+            st.write(q["question"])
+            user_answer = st.radio(f"Select your answer for Question {idx+1}", q["options"], key=f"q{idx}")
+            if st.button(f"Submit Answer for Question {idx+1}", key=f"submit{idx}"):
+                if user_answer.endswith(q["correct"]):
+                    st.success(f"Correct!")
+                    score += 1
+                else:
+                    st.error(f"Incorrect. The correct answer is {q['correct']}.")
+        
+        st.write(f"Your total score: {score}/{len(questions)}")
 
-        # Further code would be needed to make the quiz interactive
