@@ -5,6 +5,7 @@ from io import BytesIO
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import TextFormatter
 from github import Github
+import yt_dlp
 
 # Set your OpenAI and GitHub API keys in Streamlit secrets
 openai.api_key = st.secrets["openai"]["api_key"]
@@ -28,12 +29,23 @@ def fetch_transcript(video_id: str) -> str:
 # Function to transcribe using Whisper
 def transcribe_with_whisper(video_url):
     try:
-        # Download the video audio
-        response = requests.get(video_url)
-        audio_file = BytesIO(response.content)
+        # Download the video audio using yt-dlp
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+            'outtmpl': 'audio.%(ext)s',
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info_dict = ydl.extract_info(video_url, download=True)
+            audio_file_path = ydl.prepare_filename(info_dict).replace(".webm", ".mp3")
 
         # Use Whisper to transcribe the audio
-        transcript = openai.Audio.transcribe("whisper-1", audio_file)
+        with open(audio_file_path, 'rb') as audio_file:
+            transcript = openai.Audio.transcribe(file=audio_file, model="whisper-1")
         return transcript['text']
     except Exception as e:
         st.error(f"Failed to transcribe video using Whisper: {e}")
