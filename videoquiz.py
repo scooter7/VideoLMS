@@ -17,9 +17,11 @@ def generate_quiz(transcript):
     prompt = f"Create a quiz with 5 questions based on this transcript: {transcript}"
     completions = client.chat.completions.create(
         model="gpt-4o-mini",
-        messages=[{"role": "system", "content": prompt}]
+        messages=[{"role": "user", "content": prompt}]
     )
-    quiz = completions.choices[0].message["content"]  # Adjusting the access to the content properly
+    
+    # Extract the message content correctly from the response
+    quiz = completions['choices'][0]['message']['content']
     return quiz
 
 # Function to load the CSV from GitHub
@@ -40,11 +42,11 @@ st.write("Available columns:", df.columns)
 topic = st.radio("Select a Topic", df['Topic'].unique())
 
 # Display Video URLs
-videos = df[df['Topic'] == topic]['URL']  # Updated to 'URL'
+videos = df[df['Topic'] == topic]['URL']
 for i, video in enumerate(videos):
     st.video(video)
     if st.button(f"I've watched this video {i+1}"):
         # Generate quiz
-        transcript = df[df['URL'] == video]['Transcript'].values[0]  # Updated to 'Transcript'
+        transcript = df[df['URL'] == video]['Transcript'].values[0]
         quiz = generate_quiz(transcript)
         st.write(quiz)
