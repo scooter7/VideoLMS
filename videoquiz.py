@@ -30,30 +30,36 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
         )
 
         # Extract the content from the completion response
-        completion_content = completions.choices[0].message.content.strip()
+        if completions.choices and completions.choices[0].message.content:
+            completion_content = completions.choices[0].message.content.strip()
+            questions = completion_content.split("\n\n")
 
-        questions = completion_content.split("\n\n")
-
-        parsed_questions = []
-        for q in questions:
-            if "True or False" in q:
-                parsed_questions.append({
-                    "type": "true_false",
-                    "question": q.split("\n")[0],
-                    "options": ["True", "False"],
-                    "answer": "True" if "True" in q else "False"
-                })
-            else:
-                parts = q.split("\n")
-                if len(parts) >= 5:  # Ensure there are enough parts to form a valid question
+            parsed_questions = []
+            for q in questions:
+                if "True or False" in q:
                     parsed_questions.append({
-                        "type": "mcq",
-                        "question": parts[0],
-                        "options": parts[1:5],
-                        "answer": parts[5].split(":")[1].strip("*").strip()  # Remove asterisks and whitespace
+                        "type": "true_false",
+                        "question": q.split("\n")[0],
+                        "options": ["True", "False"],
+                        "answer": "True" if "True" in q else "False"
                     })
+                else:
+                    parts = q.split("\n")
+                    if len(parts) >= 5:  # Ensure there are enough parts to form a valid question
+                        parsed_questions.append({
+                            "type": "mcq",
+                            "question": parts[0],
+                            "options": parts[1:5],
+                            "answer": parts[5].split(":")[1].strip("*").strip()  # Remove asterisks and whitespace
+                        })
 
-        return parsed_questions
+            if not parsed_questions:
+                st.error("No valid quiz questions could be generated. Please try again with a different video.")
+            return parsed_questions
+
+        else:
+            st.error("Failed to generate a valid response from the OpenAI API. The response might be incomplete or malformed.")
+            return []
 
     except Exception as e:
         st.error(f"Failed to generate quiz questions: {e}")
@@ -90,7 +96,10 @@ if topic:
             with st.spinner("Generating quiz..."):
                 quiz_questions = generate_quiz_questions(transcript)
                 st.session_state[f'quiz_questions_{index}'] = quiz_questions
-                st.success(f"Quiz generated for video {index + 1}!")
+                if quiz_questions:
+                    st.success(f"Quiz generated for video {index + 1}!")
+                else:
+                    st.error(f"Failed to generate quiz for video {index + 1}.")
 
         # Display the generated quiz questions interactively
         if f'quiz_questions_{index}' in st.session_state:
