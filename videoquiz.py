@@ -29,7 +29,7 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
             messages=[{"role": "user", "content": prompt}]
         )
 
-        completion_content = completions.choices[0].message.content.strip()
+        completion_content = completions.choices[0].message["content"].strip()
         questions = completion_content.split("\n\n")
 
         parsed_questions = []
@@ -48,7 +48,7 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
                         "type": "mcq",
                         "question": parts[0],
                         "options": parts[1:5],
-                        "answer": parts[5].split(":")[1].strip()  # Assuming format: "Correct Answer: <option>"
+                        "answer": parts[5].split(":")[1].strip("*").strip()  # Remove asterisks and whitespace
                     })
 
         return parsed_questions
@@ -67,7 +67,6 @@ df = load_csv_from_github()
 # Topic Selection
 topic = st.selectbox("Select a Topic", df['Topic'].unique())
 
-# Generate and display quiz without showing transcript
 if topic:
     transcript = df[df['Topic'] == topic]['Transcript'].values[0]
     video_url = df[df['Topic'] == topic]['URL'].values[0]
@@ -75,7 +74,8 @@ if topic:
     # Display the embedded video
     st.video(video_url)
 
-    if st.button("Generate Quiz"):
+    # "Watched Video" button to trigger quiz generation
+    if st.button("I've watched this video"):
         with st.spinner("Generating quiz..."):
             quiz_questions = generate_quiz_questions(transcript)
             st.session_state.quiz_questions = quiz_questions
@@ -96,6 +96,6 @@ if "quiz_questions" in st.session_state:
                 st.success("Correct!")
                 score += 1
             else:
-                st.error(f"Incorrect. The correct answer was: {question['answer'].strip()}")
+                st.error(f"Incorrect. The correct answer was: {question['answer']}")
 
     st.write(f"Your total score: {score}/{len(st.session_state.quiz_questions)}")
