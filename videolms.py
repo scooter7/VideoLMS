@@ -142,13 +142,17 @@ if "transcript" in st.session_state:
             st.session_state.quiz_questions = quiz_questions
             st.success("Quiz generated!")
 
-# Display the generated quiz questions
+# Display the generated quiz questions interactively
 if "quiz_questions" in st.session_state:
-    st.subheader("Generated Quiz Questions")
+    st.subheader("Generated Quiz")
     
     for idx, question in enumerate(st.session_state.quiz_questions):
         st.write(f"**Question {idx+1}:** {question['question']}")
-        for option in question["options"]:
-            st.write(f"- {option}")
-        st.write(f"**Answer:** {question['answer']}")
+        user_answer = st.radio(f"Your answer for Question {idx+1}:", question["options"], key=f"q{idx}")
+        
+        if st.button(f"Submit Answer for Question {idx+1}", key=f"submit{idx}"):
+            if user_answer == question["answer"]:
+                st.success("Correct!")
+            else:
+                st.error(f"Incorrect. The correct answer was: {question['answer']}")
         st.write("---")
