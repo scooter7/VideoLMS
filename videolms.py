@@ -2,7 +2,7 @@ import streamlit as st
 import json
 import os
 import openai
-from github import Github
+from github import Github, GithubException
 from pytube import Search, YouTube
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
 from streamlit_extras.stylable_container import stylable_container
@@ -53,6 +53,20 @@ def get_top_videos(topic):
 
     return filtered_videos
 
+# Function to create or update a file on GitHub
+def create_or_update_file(repo, path, message, content):
+    try:
+        # Check if the file already exists
+        file = repo.get_contents(path)
+        # If it exists, update the file
+        repo.update_file(file.path, message, content, file.sha)
+    except GithubException as e:
+        if e.status == 404:
+            # If the file does not exist, create it
+            repo.create_file(path, message, content)
+        else:
+            raise
+
 # Topic selection
 if "selected_topic" not in st.session_state:
     st.session_state["selected_topic"] = None
@@ -84,7 +98,7 @@ if st.session_state["videos"]:
                 transcription = YouTubeTranscriptApi.get_transcript(video["id"])
                 transcription_text = " ".join([item['text'] for item in transcription])
                 file_path = f"Transcripts/{st.session_state['selected_topic'].replace(' ', '_')}/{video['id']}_transcription.txt"
-                repo.create_file(file_path, f"Add transcription for {video['title']}", transcription_text)
+                create_or_update_file(repo, file_path, f"Add transcription for {video['title']}", transcription_text)
                 st.success(f"Transcription saved for {video['title']}")
             except Exception as e:
                 st.error(f"Transcription failed for {video['title']} due to: {str(e)}")
