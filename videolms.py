@@ -3,7 +3,8 @@ from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import TextFormatter
 from yt_dlp import YoutubeDL
 from github import Github
-from openai import OpenAI
+import openai
+import random
 
 # Initialize GitHub client
 g = Github(st.secrets["github"]["token"])
@@ -86,21 +87,35 @@ def search_videos(topic: str):
 
 # Function to generate quiz from transcript
 def generate_quiz_from_transcript(transcript):
-    prompt = f"Based on the following content, create 10 quiz questions with multiple-choice answers:\n\n{transcript}"
-    client = OpenAI(api_key=st.secrets["openai"]["api_key"])
-    try:
-        completion = client.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-        questions = completion.choices[0].message["content"].strip()
-        return questions
-    except Exception as e:
-        st.error(f"Failed to generate quiz: {e}")
-        return None
+    def create_question(text):
+        question_type = random.choice(["multiple_choice", "true_false"])
+        if question_type == "multiple_choice":
+            return {
+                "type": "multiple_choice",
+                "question": f"What is the correct answer based on the following content: {text}",
+                "options": [
+                    f"Correct answer from {text}",
+                    "Incorrect answer 1",
+                    "Incorrect answer 2",
+                    "Incorrect answer 3"
+                ],
+                "answer": 0  # index of the correct answer
+            }
+        else:
+            return {
+                "type": "true_false",
+                "question": f"True or False: {text}",
+                "answer": random.choice([True, False])
+            }
+
+    sentences = transcript.split('.')
+    questions = []
+    for _ in range(5):
+        sentence = random.choice(sentences).strip()
+        if sentence:
+            questions.append(create_question(sentence))
+
+    return questions
 
 # Streamlit app interface
 st.header("YouTube Video Transcription and Quiz Generator")
@@ -145,4 +160,11 @@ if 'videos' in st.session_state:
                 questions = generate_quiz_from_transcript(transcript)
                 if questions:
                     st.subheader("Quiz Questions")
-                    st.write(questions)
+                    for question in questions:
+                        st.write(question['question'])
+                        if question['type'] == "multiple_choice":
+                            for idx, option in enumerate(question['options']):
+                                st.write(f"{idx + 1}. {option}")
+                        else:
+                            st.write("Answer: True/False")
+
