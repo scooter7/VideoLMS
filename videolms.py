@@ -53,14 +53,15 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     """
 
     try:
-        response = openai.ChatCompletion.create(
+        client = openai.OpenAI()  # Initialize the OpenAI client
+        completions = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "system", "content": "You are a helpful assistant."},
                       {"role": "user", "content": prompt}],
             max_tokens=500,
         )
         
-        questions = response.choices[0].message["content"].strip().split("\n\n")
+        questions = completions.choices[0].message["content"].strip().split("\n\n")
         parsed_questions = []
         for q in questions:
             if "True/False" in q:
