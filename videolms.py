@@ -63,7 +63,10 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
             max_tokens=500,
         )
         
-        questions = completions.choices[0].message["content"].strip().split("\n\n")
+        # Extract the content from the response
+        completion_content = completions.choices[0].message.content.strip()
+        questions = completion_content.split("\n\n")
+
         parsed_questions = []
         for q in questions:
             if "True/False" in q:
