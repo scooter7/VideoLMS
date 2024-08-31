@@ -31,12 +31,13 @@ def get_top_videos(topic):
     for video in results:
         video_id = video.video_id
         video_duration = video.length
-        video_link = f"https://www.youtube.com/watch?v={video_id}"
 
-        if video_duration <= 1200:  # Under 20 minutes
+        # Ensure the video duration is available and is under 20 minutes (1200 seconds)
+        if video_duration is not None and video_duration <= 1200:
             try:
                 # Check if transcript is available
                 YouTubeTranscriptApi.get_transcript(video_id)
+                video_link = f"https://www.youtube.com/watch?v={video_id}"
                 filtered_videos.append({
                     "title": video.title,
                     "link": video_link,
