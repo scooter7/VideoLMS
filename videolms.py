@@ -53,7 +53,9 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     """
 
     try:
-        client = openai.OpenAI()  # Initialize the OpenAI client
+        # Initialize the OpenAI client with the API key
+        client = openai.Client(api_key=st.secrets["openai"]["api_key"])
+        
         completions = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "system", "content": "You are a helpful assistant."},
@@ -136,4 +138,3 @@ if "quiz_questions" in st.session_state:
             st.write(f"- {option}")
         st.write(f"**Answer:** {question['answer']}")
         st.write("---")
-
