@@ -101,4 +101,3 @@ if "quiz_questions" in st.session_state:
                 st.error(f"Incorrect. The correct answer was: {question['answer']}")
 
     st.write(f"Your total score: {score}/{len(st.session_state.quiz_questions)}")
-
