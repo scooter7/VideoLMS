@@ -1,7 +1,5 @@
 import streamlit as st
 import openai
-import requests
-from io import BytesIO
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import TextFormatter
 from github import Github
@@ -24,31 +22,6 @@ def fetch_transcript(video_id: str) -> str:
         return formatted_transcript
     except Exception as e:
         st.error(f"Failed to fetch transcript: {e}")
-        return None
-
-# Function to transcribe using Whisper
-def transcribe_with_whisper(video_url):
-    try:
-        # Download the video audio using yt-dlp
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }],
-            'outtmpl': 'audio.%(ext)s',
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info_dict = ydl.extract_info(video_url, download=True)
-            audio_file_path = ydl.prepare_filename(info_dict).replace(".webm", ".mp3")
-
-        # Use Whisper to transcribe the audio
-        with open(audio_file_path, 'rb') as audio_file:
-            transcript = openai.Audio.transcribe(file=audio_file, model="whisper-1")
-        return transcript['text']
-    except Exception as e:
-        st.error(f"Failed to transcribe video using Whisper: {e}")
         return None
 
 # Function to save transcript to GitHub
@@ -81,23 +54,16 @@ st.title("YouTube Video Transcription and Quiz Generator")
 video_url = st.text_input("Enter YouTube Video URL:")
 transcript = None
 
-if st.button("Fetch Transcript"):
-    if video_url:
-        video_id = video_url.split("v=")[-1]
-        transcript = fetch_transcript(video_id)
+if video_url and st.button("Fetch Transcript"):
+    video_id = video_url.split("v=")[-1]
+    transcript = fetch_transcript(video_id)
 
-        if not transcript:
-            st.warning("Trying to transcribe using Whisper...")
-            transcript = transcribe_with_whisper(video_url)
-
-        if transcript:
-            st.success("Transcript fetched successfully!")
-            st.text_area("Transcript:", transcript, height=300)
-            save_transcript_to_github(f"{video_id}_transcript.txt", transcript)
-        else:
-            st.error("Failed to fetch or generate a transcript.")
+    if transcript:
+        st.success("Transcript fetched successfully!")
+        st.text_area("Transcript:", transcript, height=300)
+        save_transcript_to_github(f"{video_id}_transcript.txt", transcript)
     else:
-        st.error("Please enter a valid YouTube URL.")
+        st.error("Failed to fetch or generate a transcript.")
 
 if st.button("Generate Quiz") and transcript:
     questions = generate_quiz(transcript)
