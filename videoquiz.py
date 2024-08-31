@@ -2,18 +2,19 @@ import streamlit as st
 import pandas as pd
 import requests
 import openai
+from io import StringIO  # Import StringIO from io module
 
 # Load secrets
 openai_api_key = st.secrets["openai"]["api_key"]
 github_token = st.secrets["github"]["token"]
 
 # Function to load the CSV from GitHub
-@st.cache
+@st.cache_data
 def load_csv_from_github():
     url = "https://raw.githubusercontent.com/scooter7/VideoLMS/main/Transcripts/YouTube%20Transcripts%20-%20Sheet1.csv"
     headers = {"Authorization": f"token {github_token}"}
     response = requests.get(url, headers=headers)
-    return pd.read_csv(pd.compat.StringIO(response.text))
+    return pd.read_csv(StringIO(response.text))  # Use StringIO to read the text response as a CSV
 
 # Load the CSV file
 df = load_csv_from_github()
