@@ -70,34 +70,51 @@ df = load_csv_from_github()
 topic = st.selectbox("Select a Topic", df['Topic'].unique())
 
 if topic:
-    transcript = df[df['Topic'] == topic]['Transcript'].values[0]
-    video_url = df[df['Topic'] == topic]['URL'].values[0]
+    # Filter the DataFrame for the selected topic
+    filtered_df = df[df['Topic'] == topic]
 
-    # Display the embedded video
-    st.video(video_url)
+    # Initialize score tracking
+    total_score = 0
+    total_questions = 0
 
-    # "Watched Video" button to trigger quiz generation
-    if st.button("I've watched this video"):
-        with st.spinner("Generating quiz..."):
-            quiz_questions = generate_quiz_questions(transcript)
-            st.session_state.quiz_questions = quiz_questions
-            st.success("Quiz generated!")
+    # Display all videos for the selected topic
+    for index, row in filtered_df.iterrows():
+        video_url = row['URL']
+        transcript = row['Transcript']
+        
+        # Display the embedded video
+        st.video(video_url)
 
-# Display the generated quiz questions interactively
-if "quiz_questions" in st.session_state:
-    st.subheader("Generated Quiz")
+        # "Watched Video" button to trigger quiz generation
+        if st.button(f"I've watched this video {index + 1}"):
+            with st.spinner("Generating quiz..."):
+                quiz_questions = generate_quiz_questions(transcript)
+                st.session_state[f'quiz_questions_{index}'] = quiz_questions
+                st.success(f"Quiz generated for video {index + 1}!")
 
-    score = 0
-    for idx, question in enumerate(st.session_state.quiz_questions):
-        st.write(f"**Question {idx+1}:** {question['question']}")
-        user_answer = st.radio(f"Your answer for Question {idx+1}:", question["options"], key=f"q{idx}")
+        # Display the generated quiz questions interactively
+        if f'quiz_questions_{index}' in st.session_state:
+            st.subheader(f"Quiz for Video {index + 1}")
 
-        if st.button(f"Submit Answer for Question {idx+1}", key=f"submit{idx}"):
-            # Compare user answer with correct answer
-            if user_answer.strip() == question["answer"].strip():
-                st.success("Correct!")
-                score += 1
-            else:
-                st.error(f"Incorrect. The correct answer was: {question['answer']}")
+            video_score = 0
+            for idx, question in enumerate(st.session_state[f'quiz_questions_{index}']):
+                st.write(f"**Question {idx + 1}:** {question['question']}")
+                user_answer = st.radio(f"Your answer for Question {idx + 1}:", question["options"], key=f"q_{index}_{idx}")
 
-    st.write(f"Your total score: {score}/{len(st.session_state.quiz_questions)}")
+                if st.button(f"Submit Answer for Question {idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
+                    # Compare user answer with correct answer
+                    if user_answer.strip() == question["answer"].strip():
+                        st.success("Correct!")
+                        video_score += 1
+                    else:
+                        st.error(f"Incorrect. The correct answer was: {question['answer']}")
+
+            st.write(f"Your score for Video {index + 1}: {video_score}/{len(st.session_state[f'quiz_questions_{index}'])}")
+            
+            # Update the total score and total questions count
+            total_score += video_score
+            total_questions += len(st.session_state[f'quiz_questions_{index}'])
+
+    # Display total score across all quizzes
+    if total_questions > 0:
+        st.write(f"**Your total score across all videos: {total_score}/{total_questions}**")
