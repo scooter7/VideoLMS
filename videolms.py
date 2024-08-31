@@ -4,6 +4,7 @@ from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import TextFormatter
 from github import Github
 import yt_dlp
+import os
 
 # Set your OpenAI and GitHub API keys in Streamlit secrets
 openai.api_key = st.secrets["openai"]["api_key"]
@@ -23,6 +24,20 @@ def fetch_transcript(video_id: str) -> str:
     except Exception as e:
         st.error(f"Failed to fetch transcript: {e}")
         return None
+
+# Function to transcribe video using Whisper
+def transcribe_with_whisper(video_url: str) -> str:
+    try:
+        os.system(f"yt-dlp -f bestaudio --extract-audio --audio-format mp3 -o 'temp_audio.mp3' {video_url}")
+        audio_file = open("temp_audio.mp3", "rb")
+        transcript = openai.Audio.transcribe("whisper-1", audio_file)
+        return transcript['text']
+    except Exception as e:
+        st.error(f"Failed to transcribe video using Whisper: {e}")
+        return None
+    finally:
+        if os.path.exists("temp_audio.mp3"):
+            os.remove("temp_audio.mp3")
 
 # Function to save transcript to GitHub
 def save_transcript_to_github(filename: str, content: str):
@@ -63,7 +78,15 @@ if video_url and st.button("Fetch Transcript"):
         st.text_area("Transcript:", transcript, height=300)
         save_transcript_to_github(f"{video_id}_transcript.txt", transcript)
     else:
-        st.error("Failed to fetch or generate a transcript.")
+        st.warning("Failed to fetch transcript. Trying Whisper...")
+        transcript = transcribe_with_whisper(video_url)
+
+        if transcript:
+            st.success("Transcript generated using Whisper!")
+            st.text_area("Transcript:", transcript, height=300)
+            save_transcript_to_github(f"{video_id}_transcript_whisper.txt", transcript)
+        else:
+            st.error("Failed to fetch or generate a transcript.")
 
 if st.button("Generate Quiz") and transcript:
     questions = generate_quiz(transcript)
