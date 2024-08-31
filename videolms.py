@@ -34,6 +34,9 @@ def transcribe_with_whisper(video_url: str) -> str:
         
         os.remove("temp_audio.mp3")  # Clean up
         return transcript["text"]
+    except yt_dlp.utils.DownloadError as e:
+        st.error(f"Failed to download video using yt-dlp: {e}")
+        return None
     except Exception as e:
         st.error(f"Failed to transcribe video using Whisper: {e}")
         return None
@@ -61,12 +64,10 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
             max_tokens=500,
         )
 
-        # Check if choices exist in the response
         if not completions.choices:
             st.error("No response received from the API. Check the model or input.")
             return []
 
-        # Extract the content from the response
         completion_content = completions.choices[0].message.content.strip()
         st.write("API Response:", completion_content)  # Log the response content for debugging
         questions = completion_content.split("\n\n")
@@ -148,7 +149,6 @@ if "quiz_questions" in st.session_state:
         user_answer = st.radio(f"Your answer for Question {idx+1}:", question["options"], key=f"q{idx}")
 
         if st.button(f"Submit Answer for Question {idx+1}", key=f"submit{idx}"):
-            # Clean the correct answer and user's selected answer
             correct_answer_clean = question["answer"].replace("**", "").strip().lower()
             selected_answer_clean = user_answer.replace("**", "").strip().lower()
 
