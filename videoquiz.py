@@ -2,100 +2,100 @@ import streamlit as st
 import pandas as pd
 import requests
 import openai
-from io import StringIO
 
-# Load secrets
-openai_api_key = st.secrets["openai"]["api_key"]
-github_token = st.secrets["github"]["token"]
-
-# Initialize the OpenAI client
-client = openai
-
-# Function to generate a quiz using GPT-4o-mini
-def generate_quiz(transcript):
-    client.api_key = openai_api_key
-    prompt = (
-        f"Based on the following transcript, please generate a quiz with 5 questions. "
-        f"The quiz should include a mix of multiple-choice and true/false questions. "
-        f"Each question should have options, and indicate the correct answer:\n\n{transcript}"
-    )
-    
-    completions = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}]
-    )
-    
-    quiz_text = completions.choices[0].message.content
-    st.write("Raw GPT-4o-mini Response:")  # Debugging step
-    st.write(quiz_text)  # Output the raw text to help diagnose
-    
-    return quiz_text
-
-# Function to parse the quiz text into a structured format
-def parse_quiz(quiz_text):
-    questions = []
-    current_question = None
-    lines = quiz_text.split("\n")
-    
-    for line in lines:
-        line = line.strip()
-        if line.lower().startswith("question"):
-            if current_question:
-                questions.append(current_question)
-            current_question = {"question": line, "options": [], "correct": None}
-        elif line.lower().startswith(("a)", "b)", "c)", "d)")):
-            if current_question:
-                current_question["options"].append(line)
-        elif "correct answer:" in line.lower():
-            if current_question:
-                current_question["correct"] = line.split("Correct Answer: ")[1].strip()
-    
-    if current_question and current_question["options"]:  # Ensure last question is appended
-        questions.append(current_question)
-    
-    return questions
+# Set your OpenAI API key
+openai.api_key = st.secrets["openai"]["api_key"]
 
 # Function to load the CSV from GitHub
 @st.cache_data
 def load_csv_from_github():
     url = "https://raw.githubusercontent.com/scooter7/VideoLMS/main/Transcripts/YouTube%20Transcripts%20-%20Sheet1.csv"
-    headers = {"Authorization": f"token {github_token}"}
-    response = requests.get(url, headers=headers)
-    return pd.read_csv(StringIO(response.text))  # Use StringIO to read the text response as a CSV
+    df = pd.read_csv(url)
+    return df
 
-# Load the CSV file
+# Function to generate quiz questions using GPT-4o-mini
+def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
+    prompt = f"""
+    You are an expert quiz generator. Based on the following transcript, create {num_questions} quiz questions.
+    Each question should be either a multiple-choice question (with 4 options) or a true/false question.
+    Provide the correct answer for each question.
+
+    Transcript:
+    {transcript}
+    """
+
+    try:
+        completions = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        completion_content = completions.choices[0].message["content"].strip()
+        questions = completion_content.split("\n\n")
+
+        parsed_questions = []
+        for q in questions:
+            if "True or False" in q:
+                parsed_questions.append({
+                    "type": "true_false",
+                    "question": q.split("\n")[0],
+                    "options": ["True", "False"],
+                    "answer": "True" if "True" in q else "False"
+                })
+            else:
+                parts = q.split("\n")
+                if len(parts) >= 5:  # Ensure there are enough parts to form a valid question
+                    parsed_questions.append({
+                        "type": "mcq",
+                        "question": parts[0],
+                        "options": parts[1:5],
+                        "answer": parts[5].split(":")[1].strip()  # Assuming format: "Correct Answer: <option>"
+                    })
+
+        return parsed_questions
+
+    except Exception as e:
+        st.error(f"Failed to generate quiz questions: {e}")
+        return []
+
+# Streamlit App
+st.title("Transcript-based Quiz Generator")
+st.markdown("Generate quizzes from transcripts in a CSV file hosted on GitHub.")
+
+# Load the CSV file from GitHub
 df = load_csv_from_github()
 
 # Topic Selection
-topic = st.radio("Select a Topic", df['Topic'].unique())
+topic = st.selectbox("Select a Topic", df['Topic'].unique())
 
-# Display Video URLs
-videos = df[df['Topic'] == topic]['URL']
-for i, video in enumerate(videos):
-    st.video(video)
-    if st.button(f"I've watched this video {i+1}"):
-        # Generate quiz
-        transcript = df[df['URL'] == video]['Transcript'].values[0]
-        quiz_text = generate_quiz(transcript)
-        questions = parse_quiz(quiz_text)
-        
-        # Display the quiz interactively
-        if questions:
-            st.write("Quiz Generated from the Transcript:")
-            user_answers = {}
-            for idx, q in enumerate(questions):
-                st.write(q["question"])
-                user_answers[idx] = st.radio(f"Question {idx+1}", q["options"], key=f"q{idx}")
-            
-            if st.button("Submit Quiz"):
-                score = 0
-                for idx, q in enumerate(questions):
-                    correct_answer = q["correct"]
-                    if user_answers[idx].endswith(correct_answer):
-                        st.success(f"Question {idx+1}: Correct!")
-                        score += 1
-                    else:
-                        st.error(f"Question {idx+1}: Incorrect. The correct answer is {correct_answer}.")
-                st.write(f"Your total score: {score}/{len(questions)}")
-        else:
-            st.write("No quiz could be generated from the transcript.")
+# Display transcript and generate quiz
+if topic:
+    transcript = df[df['Topic'] == topic]['Transcript'].values[0]
+    st.subheader("Transcript")
+    st.write(transcript)
+
+    if st.button("Generate Quiz"):
+        with st.spinner("Generating quiz..."):
+            quiz_questions = generate_quiz_questions(transcript)
+            st.session_state.quiz_questions = quiz_questions
+            st.success("Quiz generated!")
+
+# Display the generated quiz questions interactively
+if "quiz_questions" in st.session_state:
+    st.subheader("Generated Quiz")
+
+    score = 0
+    for idx, question in enumerate(st.session_state.quiz_questions):
+        st.write(f"**Question {idx+1}:** {question['question']}")
+        user_answer = st.radio(f"Your answer for Question {idx+1}:", question["options"], key=f"q{idx}")
+
+        if st.button(f"Submit Answer for Question {idx+1}", key=f"submit{idx}"):
+            # Compare user answer with correct answer
+            if user_answer.strip() == question["answer"].strip():
+                st.success("Correct!")
+                score += 1
+            else:
+                st.error(f"Incorrect. The correct answer was: {question['answer'].strip()}")
+
+    st.write(f"Your total score: {score}/{len(st.session_state.quiz_questions)}")
+
