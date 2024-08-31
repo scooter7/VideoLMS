@@ -8,11 +8,14 @@ from io import StringIO  # Import StringIO from io module
 openai_api_key = st.secrets["openai"]["api_key"]
 github_token = st.secrets["github"]["token"]
 
+# Initialize the OpenAI client
+client = openai
+
 # Function to generate quiz using GPT-4o-mini
 def generate_quiz(transcript):
-    openai.api_key = openai_api_key
+    client.api_key = openai_api_key
     prompt = f"Create a quiz with 5 questions based on this transcript: {transcript}"
-    completions = client.chat.completions.create(
+    completions = client.ChatCompletion.create(
         model="gpt-4o-mini",
         messages=[{"role": "system", "content": prompt}]
     )
