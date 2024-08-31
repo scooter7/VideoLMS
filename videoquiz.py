@@ -102,8 +102,12 @@ if topic:
                 user_answer = st.radio(f"Your answer for Question {idx + 1}:", question["options"], key=f"q_{index}_{idx}")
 
                 if st.button(f"Submit Answer for Question {idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
+                    # Clean and normalize both user answer and correct answer
+                    correct_answer_clean = question["answer"].strip().lower()
+                    user_answer_clean = user_answer.strip().lower()
+
                     # Compare user answer with correct answer
-                    if user_answer.strip() == question["answer"].strip():
+                    if user_answer_clean == correct_answer_clean:
                         st.success("Correct!")
                         video_score += 1
                     else:
