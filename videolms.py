@@ -1,165 +1,75 @@
 import streamlit as st
-import openai
-import os
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
+from openai import OpenAI
+from github import Github
 import yt_dlp
+import openai
+import random
 
-# Set your OpenAI API key
-openai.api_key = st.secrets["openai"]["api_key"]
+# Initialize OpenAI and GitHub clients
+client = openai.Client(api_key=st.secrets["openai"]["api_key"])
+g = Github(st.secrets["github"]["token"])
+repo = g.get_repo("scooter7/VideoLMS")
 
-# Function to fetch transcript using youtube_transcript_api
 def fetch_transcript(video_id: str) -> str:
     try:
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
-        transcript_text = " ".join([entry['text'] for entry in transcript])
-        return transcript_text
-    except (TranscriptsDisabled, NoTranscriptFound):
+        formatted_transcript = " ".join([entry['text'] for entry in transcript])
+        return formatted_transcript
+    except (TranscriptsDisabled, NoTranscriptFound) as e:
+        st.error(f"Failed to fetch transcript: {str(e)}")
         return None
 
-# Function to download video audio and transcribe using Whisper
-def transcribe_with_whisper(video_url: str) -> str:
+def save_transcript_to_github(transcript: str, video_id: str):
     try:
-        # Download video audio
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'outtmpl': 'temp_audio.mp3',
-            'quiet': True,
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([video_url])
-
-        # Transcribe with Whisper
-        with open("temp_audio.mp3", "rb") as audio_file:
-            transcript = openai.Audio.transcribe("whisper-1", audio_file)
-        
-        os.remove("temp_audio.mp3")  # Clean up
-        return transcript["text"]
+        path = f"transcripts/{video_id}.txt"
+        repo.create_file(path, f"Add transcript for {video_id}", transcript)
+        st.success("Transcript saved to GitHub successfully!")
     except Exception as e:
-        st.error(f"Failed to transcribe video using Whisper: {e}")
-        return None
+        st.error(f"Failed to save transcript to GitHub: {str(e)}")
 
-# Function to generate quiz questions using GPT-4o-mini
-def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
-    questions = []
-
-    prompt = f"""
-    You are an expert quiz generator. Based on the following transcript, create {num_questions} quiz questions.
-    Each question should be either a multiple-choice question (with 4 options) or a true/false question.
-    Provide the correct answer for each question.
-
-    Transcript:
-    {transcript}
-    """
-
+def generate_quiz(transcript: str):
+    prompt = f"Generate 5 quiz questions (either multiple choice or true/false) based on the following transcript: {transcript}"
     try:
-        client = openai.Client(api_key=st.secrets["openai"]["api_key"])
-        
         completions = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "system", "content": "You are a helpful assistant."},
-                      {"role": "user", "content": prompt}],
-            max_tokens=500,
+                      {"role": "user", "content": prompt}]
         )
-
-        # Check if choices exist in the response
-        if not completions.choices:
-            st.error("No response received from the API. Check the model or input.")
-            return []
-
-        # Extract the content from the response
-        completion_content = completions.choices[0].message.content.strip()
-        st.write("API Response:", completion_content)  # Log the response content for debugging
-        questions = completion_content.split("\n\n")
-
-        parsed_questions = []
-        for q in questions:
-            if "True/False" in q:
-                parsed_questions.append({
-                    "type": "true_false",
-                    "question": q.split("\n")[0],
-                    "options": ["True", "False"],
-                    "answer": "True" if "True" in q else "False"
-                })
-            else:
-                parts = q.split("\n")
-                if len(parts) >= 5:  # Ensure there are enough parts to form a valid question
-                    parsed_questions.append({
-                        "type": "mcq",
-                        "question": parts[0],
-                        "options": parts[1:5],
-                        "answer": parts[5].split(":")[1].strip()  # Assuming format: "Answer: Correct Option"
-                    })
-                else:
-                    st.warning(f"Skipping invalid question format: {q}")
-
-        return parsed_questions
-
-    except IndexError as e:
-        st.error("Failed to generate quiz questions: The API response was incomplete or malformed.")
-        st.error(f"Details: {e}")
-        return []
+        quiz_data = completions.choices[0].message["content"]
+        return quiz_data
     except Exception as e:
-        st.error(f"Failed to generate quiz questions: {e}")
-        return []
+        st.error(f"Failed to generate quiz questions: {str(e)}")
+        return None
 
-# Streamlit App
-st.title("YouTube Video Transcript and Quiz Generator")
-st.markdown("Generate transcripts and quiz questions from YouTube videos.")
+def process_quiz(quiz_data):
+    questions = quiz_data.split("\n\n")
+    for i, question in enumerate(questions):
+        st.write(f"Question {i+1}: {question.split(':')[1].strip()}")
+        options = ["a", "b", "c", "d"]
+        selected_option = st.radio(f"Your answer for Question {i+1}:", options)
+        correct_answer = [line for line in question.split('\n') if line.startswith("Correct answer:")][0].split(":")[1].strip()
 
-# Input YouTube URL
-video_url = st.text_input("Enter YouTube Video URL", "")
-
-if st.button("Fetch Transcript"):
-    if video_url:
-        video_id = video_url.split("v=")[-1]
-        
-        with st.spinner("Fetching transcript..."):
-            transcript = fetch_transcript(video_id)
-        
-        if transcript:
-            st.success("Transcript fetched successfully!")
-            st.session_state["transcript"] = transcript
+        if selected_option in correct_answer:
+            st.success("Correct!")
         else:
-            st.warning("No transcript available, trying Whisper...")
-            with st.spinner("Transcribing with Whisper..."):
-                transcript = transcribe_with_whisper(video_url)
-                if transcript:
-                    st.success("Transcription successful using Whisper!")
-                    st.session_state["transcript"] = transcript
-                else:
-                    st.error("Failed to fetch or generate a transcript.")
-    else:
-        st.error("Please enter a valid YouTube URL.")
+            st.error(f"Incorrect. The correct answer was: {correct_answer}")
 
-# Display the transcript if available
-if "transcript" in st.session_state:
-    st.subheader("Transcript")
-    st.write(st.session_state["transcript"])
+# Streamlit App Interface
+st.title("Video Quiz Generator")
+video_url = st.text_input("Enter YouTube Video URL:")
 
-    if st.button("Generate Quiz"):
-        with st.spinner("Generating quiz..."):
-            quiz_questions = generate_quiz_questions(st.session_state["transcript"])
-            st.session_state.quiz_questions = quiz_questions
-            st.success("Quiz generated!")
+if video_url:
+    video_id = video_url.split("v=")[-1]
+    transcript = fetch_transcript(video_id)
 
-# Display the generated quiz questions interactively
-if "quiz_questions" in st.session_state:
-    st.subheader("Generated Quiz")
+    if transcript:
+        # Comment out or remove this line to hide the transcript
+        # st.write(transcript)
 
-    for idx, question in enumerate(st.session_state.quiz_questions):
-        st.write(f"**Question {idx+1}:** {question['question']}")
-        user_answer = st.radio(f"Your answer for Question {idx+1}:", question["options"], key=f"q{idx}")
+        save_transcript_to_github(transcript, video_id)
 
-        if st.button(f"Submit Answer for Question {idx+1}", key=f"submit{idx}"):
-            # Clean the correct answer and user's selected answer
-            correct_answer_clean = question["answer"].replace("**", "").strip().lower()
-            selected_answer_clean = user_answer.replace("**", "").strip().lower()
-
-            if selected_answer_clean == correct_answer_clean:
-                st.success("Correct!")
-            else:
-                st.error(f"Incorrect. The correct answer was: **{question['answer'].replace('**', '').strip()}**")
-        st.write("---")
-
-
-
+        if st.button("Generate Quiz"):
+            quiz_data = generate_quiz(transcript)
+            if quiz_data:
+                process_quiz(quiz_data)
