@@ -33,18 +33,24 @@ def get_top_videos(topic):
         if 'lengthSeconds' in video_details:
             video_duration = int(video_details['lengthSeconds'])
             
-            # Ensure the video duration is under 25 minutes (1500 seconds)
-            if video_duration <= 1500:
+            # Ensure the video duration is under 30 minutes (1800 seconds)
+            if video_duration <= 1800:
                 try:
-                    # Check if transcript is available in any language
+                    # First, try to find manually created transcripts
                     transcripts = YouTubeTranscriptApi.list_transcripts(video_id)
-                    transcript = transcripts.find_manually_created_transcript(['en'])
+                    try:
+                        transcript = transcripts.find_manually_created_transcript(['en'])
+                    except NoTranscriptFound:
+                        # Fallback to auto-generated transcript if manually created one is not available
+                        transcript = transcripts.find_generated_transcript(['en'])
+                    
                     video_link = f"https://www.youtube.com/watch?v={video_id}"
                     filtered_videos.append({
                         "title": video.title,
                         "link": video_link,
                         "id": video_id
                     })
+                    
                     if len(filtered_videos) == 5:
                         break
                 except (TranscriptsDisabled, NoTranscriptFound, CouldNotRetrieveTranscript):
