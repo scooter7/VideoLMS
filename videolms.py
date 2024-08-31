@@ -54,6 +54,7 @@ def get_top_videos(topic):
                     if len(filtered_videos) == 5:
                         break
                 except (TranscriptsDisabled, NoTranscriptFound, CouldNotRetrieveTranscript):
+                    st.warning(f"Transcription not available for video {video.title}. Skipping this video.")
                     continue
 
     if len(filtered_videos) < 5:
