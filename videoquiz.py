@@ -20,8 +20,8 @@ def generate_quiz(transcript):
         messages=[{"role": "user", "content": prompt}]
     )
     
-    # Extract the message content correctly from the response
-    quiz = completions['choices'][0]['message']['content']
+    # Extract the content from the completion response
+    quiz = completions.choices[0].message['content']
     return quiz
 
 # Function to load the CSV from GitHub
