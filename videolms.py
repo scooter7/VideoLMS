@@ -31,7 +31,7 @@ def get_top_videos(topic):
         video_duration = video.length
 
         # Ensure the video duration is available and is under 20 minutes (1200 seconds)
-        if video_duration is not None and video_duration <= 1200:
+        if video_duration and isinstance(video_duration, int) and video_duration <= 1200:
             try:
                 # Check if transcript is available
                 YouTubeTranscriptApi.get_transcript(video_id)
