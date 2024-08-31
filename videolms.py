@@ -4,7 +4,6 @@ from youtube_transcript_api.formatters import TextFormatter
 from yt_dlp import YoutubeDL
 from github import Github
 from openai import OpenAI
-import re
 
 # Initialize GitHub client
 g = Github(st.secrets["github"]["token"])
@@ -69,6 +68,24 @@ def search_videos(topic: str):
                 })
         return videos
 
+# Function to generate quiz from transcript
+def generate_quiz_from_transcript(transcript):
+    prompt = f"Based on the following content, create 10 quiz questions with multiple-choice answers:\n\n{transcript}"
+    client = OpenAI(api_key=st.secrets["openai"]["api_key"])
+    try:
+        completion = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        questions = completion.choices[0].message["content"].strip()
+        return questions
+    except Exception as e:
+        st.error(f"Failed to generate quiz: {e}")
+        return None
+
 # Streamlit app interface
 st.header("YouTube Video Transcription and Quiz Generator")
 topic = st.text_input("Enter Topic to Search Videos:")
@@ -109,17 +126,7 @@ if 'videos' in st.session_state:
 
             st.subheader("Generate Quiz")
             if st.button("Generate Quiz"):
-                prompt = f"Based on the following content, create 10 quiz questions:\n\n{transcript}"
-                client = OpenAI(api_key=st.secrets["openai"]["api_key"])
-                try:
-                    completion = client.chat.completions.create(
-                        model="gpt-4",
-                        messages=[
-                            {"role": "system", "content": "You are a helpful assistant."},
-                            {"role": "user", "content": prompt}
-                        ]
-                    )
-                    questions = completion.choices[0].message["content"].strip()
+                questions = generate_quiz_from_transcript(transcript)
+                if questions:
+                    st.subheader("Quiz Questions")
                     st.write(questions)
-                except Exception as e:
-                    st.error(f"Failed to generate quiz: {e}")
