@@ -1,21 +1,15 @@
 import streamlit as st
-import openai
-import requests
-from io import BytesIO
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import TextFormatter
+from yt_dlp import YoutubeDL
 from github import Github
-import yt_dlp
-
-# Set your OpenAI and GitHub API keys in Streamlit secrets
-openai.api_key = st.secrets["openai"]["api_key"]
-github_token = st.secrets["github"]["token"]
+from openai import OpenAI
 
 # Initialize GitHub client
-g = Github(github_token)
+g = Github(st.secrets["github"]["token"])
 repo = g.get_repo("scooter7/VideoLMS")
 
-# Function to fetch transcript using youtube-transcript-api
+# Function to fetch transcript using youtube_transcript_api
 def fetch_transcript(video_id: str) -> str:
     try:
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
@@ -23,88 +17,132 @@ def fetch_transcript(video_id: str) -> str:
         formatted_transcript = formatter.format_transcript(transcript)
         return formatted_transcript
     except Exception as e:
-        st.error(f"Failed to fetch transcript: {e}")
-        return None
-
-# Function to transcribe using Whisper
-def transcribe_with_whisper(video_url):
-    try:
-        # Download the video audio using yt-dlp
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }],
-            'outtmpl': 'audio.%(ext)s',
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info_dict = ydl.extract_info(video_url, download=True)
-            audio_file_path = ydl.prepare_filename(info_dict).replace(".webm", ".mp3")
-
-        # Use Whisper to transcribe the audio
-        with open(audio_file_path, 'rb') as audio_file:
-            transcript = openai.Audio.transcribe(file=audio_file, model="whisper-1")
-        return transcript['text']
-    except Exception as e:
-        st.error(f"Failed to transcribe video using Whisper: {e}")
-        return None
-
-# Function to save transcript to GitHub
-def save_transcript_to_github(filename: str, content: str):
-    try:
-        contents = repo.get_contents(filename)
-        repo.update_file(contents.path, f"Update {filename}", content, contents.sha)
-    except:
-        repo.create_file(filename, f"Create {filename}", content)
-
-# Function to generate quiz questions from the transcript
-def generate_quiz(transcript):
-    sentences = transcript.split('.')
-    questions = []
-
-    for sentence in sentences[:5]:  # Limiting to 5 questions for simplicity
-        question = {
-            "type": "mcq",
-            "question": f"What does this statement imply? '{sentence.strip()}'",
-            "options": ["True", "False", "Not Sure", "Maybe"],
-            "answer": "True"
-        }
-        questions.append(question)
-
-    return questions
-
-# Streamlit UI
-st.title("YouTube Video Transcription and Quiz Generator")
-
-video_url = st.text_input("Enter YouTube Video URL:")
-transcript = None
-
-if st.button("Fetch Transcript"):
-    if video_url:
-        video_id = video_url.split("v=")[-1]
-        transcript = fetch_transcript(video_id)
-
-        if not transcript:
-            st.warning("Trying to transcribe using Whisper...")
-            transcript = transcribe_with_whisper(video_url)
-
-        if transcript:
-            st.success("Transcript fetched successfully!")
-            st.text_area("Transcript:", transcript, height=300)
-            save_transcript_to_github(f"{video_id}_transcript.txt", transcript)
+        if "No transcript found" in str(e):
+            st.error("No transcript found for this video.")
         else:
-            st.error("Failed to fetch or generate a transcript.")
-    else:
-        st.error("Please enter a valid YouTube URL.")
+            st.error(f"Failed to fetch transcript: {e}")
+        return None
 
-if st.button("Generate Quiz") and transcript:
-    questions = generate_quiz(transcript)
-    st.write("Generated Quiz Questions:")
-    for i, question in enumerate(questions):
-        st.write(f"Q{i+1}: {question['question']}")
-        for option in question['options']:
-            st.write(f"- {option}")
-else:
-    st.info("You need to fetch the transcript first before generating the quiz.")
+# Function to get video information using yt-dlp
+def get_video_info(video_url: str) -> tuple:
+    opts = {}
+    with YoutubeDL(opts) as yt:
+        info = yt.extract_info(video_url, download=False)
+        title = info.get("title", "")
+        description = info.get("description", "")
+        thumbnails = info.get("thumbnails", [])
+        thumbnail_url = thumbnails[-1]["url"] if thumbnails else None
+        return title, description, thumbnail_url
+
+# Function to save the transcript to GitHub
+def save_transcript_to_github(repo, video_title, video_id, transcript_text):
+    file_path = f"Transcripts/{video_title.replace(' ', '_')}_{video_id}_transcription.txt"
+    try:
+        existing_file = None
+        try:
+            existing_file = repo.get_contents(file_path)
+        except:
+            pass  # File doesn't exist
+
+        if existing_file:
+            # Update the existing file
+            repo.update_file(
+                file_path,
+                f"Update transcription for {video_title}",
+                transcript_text,
+                sha=existing_file.sha
+            )
+        else:
+            # Create a new file
+            repo.create_file(
+                file_path,
+                f"Add transcription for {video_title}",
+                transcript_text
+            )
+        st.success(f"Transcription saved to GitHub at {file_path}")
+    except Exception as e:
+        st.error(f"Failed to save transcription to GitHub: {e}")
+
+# Function to search for videos based on a topic using yt-dlp
+def search_videos(topic: str):
+    opts = {
+        'format': 'best',
+        'noplaylist': True,
+        'quiet': True,
+        'default_search': 'ytsearch5',  # Search for top 5 results
+    }
+    with YoutubeDL(opts) as yt:
+        results = yt.extract_info(f"ytsearch5:{topic}", download=False)['entries']
+        videos = []
+        for entry in results:
+            if entry['duration'] <= 1200 and entry.get('subtitles'):
+                videos.append({
+                    'title': entry['title'],
+                    'url': entry['webpage_url'],
+                    'duration': entry['duration'],
+                    'video_id': entry['id']
+                })
+        return videos
+
+# Function to generate quiz from transcript
+def generate_quiz_from_transcript(transcript):
+    prompt = f"Based on the following content, create 10 quiz questions with multiple-choice answers:\n\n{transcript}"
+    client = OpenAI(api_key=st.secrets["openai"]["api_key"])
+    try:
+        completion = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        questions = completion.choices[0].message["content"].strip()
+        return questions
+    except Exception as e:
+        st.error(f"Failed to generate quiz: {e}")
+        return None
+
+# Streamlit app interface
+st.header("YouTube Video Transcription and Quiz Generator")
+topic = st.text_input("Enter Topic to Search Videos:")
+
+if st.button("Find Videos"):
+    if topic:
+        videos = search_videos(topic)
+        if videos:
+            st.session_state['videos'] = videos
+            for idx, video in enumerate(videos):
+                st.write(f"**{idx + 1}. {video['title']}** - {video['duration']//60} minutes")
+                st.video(video['url'])
+        else:
+            st.warning("No videos found with transcripts available. Please try a different topic or adjust the criteria.")
+    else:
+        st.warning("Please enter a topic to search.")
+
+# If videos are found and selected
+if 'videos' in st.session_state:
+    selected_video_idx = st.selectbox("Select a video to proceed:", range(len(st.session_state['videos'])), format_func=lambda x: st.session_state['videos'][x]['title'])
+    
+    if st.button("Fetch Video Info"):
+        selected_video = st.session_state['videos'][selected_video_idx]
+        video_id = selected_video['video_id']
+        title, description, thumbnail_url = get_video_info(selected_video['url'])
+        
+        st.write(f"**Title:** {title}")
+        st.write(f"**Description:** {description}")
+        if thumbnail_url:
+            st.image(thumbnail_url)
+
+        transcript = fetch_transcript(video_id)
+        if transcript:
+            st.subheader("Transcript")
+            st.write(transcript)
+            
+            save_transcript_to_github(repo, title, video_id, transcript)
+
+            st.subheader("Generate Quiz")
+            if st.button("Generate Quiz"):
+                questions = generate_quiz_from_transcript(transcript)
+                if questions:
+                    st.subheader("Quiz Questions")
+                    st.write(questions)
