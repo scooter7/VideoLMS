@@ -3,7 +3,7 @@ import json
 import os
 import openai
 from github import Github
-from youtubesearchpython import VideosSearch
+from pytube import Search, YouTube
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
 from streamlit_extras.stylable_container import stylable_container
 
@@ -21,32 +21,27 @@ repo = github.get_repo(repo_name)
 # Define available topics
 topics = ["Communication Skills", "Conflict Resolution Skills", "Time Management Skills"]
 
-# Function to retrieve top YouTube videos
+# Function to retrieve top YouTube videos using pytube
 def get_top_videos(topic):
-    search = VideosSearch(topic, limit=50)  # Increase the limit to 50
-    results = search.result()["result"]
+    search = Search(topic)
+    results = search.results
 
     filtered_videos = []
 
     for video in results:
-        video_duration = video.get("duration")
-        video_link = video.get("link")
-        video_id = video_link.split("v=")[-1]
+        video_id = video.video_id
+        video_duration = video.length
+        video_link = f"https://www.youtube.com/watch?v={video_id}"
 
-        # Convert video duration to seconds
-        duration_parts = video_duration.split(":")
-        if len(duration_parts) == 2:  # Format MM:SS
-            duration_seconds = int(duration_parts[0]) * 60 + int(duration_parts[1])
-        elif len(duration_parts) == 3:  # Format HH:MM:SS
-            duration_seconds = int(duration_parts[0]) * 3600 + int(duration_parts[1]) * 60 + int(duration_parts[2])
-        else:
-            continue
-
-        if duration_seconds <= 1200:  # Now under 20 minutes
+        if video_duration <= 1200:  # Under 20 minutes
             try:
                 # Check if transcript is available
                 YouTubeTranscriptApi.get_transcript(video_id)
-                filtered_videos.append(video)
+                filtered_videos.append({
+                    "title": video.title,
+                    "link": video_link,
+                    "id": video_id
+                })
                 if len(filtered_videos) == 5:
                     break
             except (TranscriptsDisabled, NoTranscriptFound):
