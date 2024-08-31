@@ -3,6 +3,7 @@ from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import TextFormatter
 from yt_dlp import YoutubeDL
 from github import Github
+from openai import OpenAI
 import re
 
 # Initialize GitHub client
@@ -47,14 +48,52 @@ def save_transcript_to_github(repo, video_title, video_id, transcript_text):
     except Exception as e:
         st.error(f"Failed to save transcription to GitHub: {e}")
 
+# Function to search for videos based on a topic using yt-dlp
+def search_videos(topic: str):
+    opts = {
+        'format': 'best',
+        'noplaylist': True,
+        'quiet': True,
+        'default_search': 'ytsearch5',  # Search for top 5 results
+    }
+    with YoutubeDL(opts) as yt:
+        results = yt.extract_info(f"ytsearch5:{topic}", download=False)['entries']
+        videos = []
+        for entry in results:
+            if entry['duration'] <= 1200 and entry.get('subtitles'):
+                videos.append({
+                    'title': entry['title'],
+                    'url': entry['webpage_url'],
+                    'duration': entry['duration'],
+                    'video_id': entry['id']
+                })
+        return videos
+
 # Streamlit app interface
 st.header("YouTube Video Transcription and Quiz Generator")
-youtube_url = st.text_input("Enter YouTube URL:")
+topic = st.text_input("Enter Topic to Search Videos:")
 
-if st.button("Fetch Video Info"):
-    if youtube_url:
-        video_id = re.search(r"v=([^&]+)", youtube_url).group(1)
-        title, description, thumbnail_url = get_video_info(youtube_url)
+if st.button("Find Videos"):
+    if topic:
+        videos = search_videos(topic)
+        if videos:
+            st.session_state['videos'] = videos
+            for idx, video in enumerate(videos):
+                st.write(f"**{idx + 1}. {video['title']}** - {video['duration']//60} minutes")
+                st.video(video['url'])
+        else:
+            st.warning("No videos found with transcripts available. Please try a different topic or adjust the criteria.")
+    else:
+        st.warning("Please enter a topic to search.")
+
+# If videos are found and selected
+if 'videos' in st.session_state:
+    selected_video_idx = st.selectbox("Select a video to proceed:", range(len(st.session_state['videos'])), format_func=lambda x: st.session_state['videos'][x]['title'])
+    
+    if st.button("Fetch Video Info"):
+        selected_video = st.session_state['videos'][selected_video_idx]
+        video_id = selected_video['video_id']
+        title, description, thumbnail_url = get_video_info(selected_video['url'])
         
         st.write(f"**Title:** {title}")
         st.write(f"**Description:** {description}")
@@ -84,5 +123,3 @@ if st.button("Fetch Video Info"):
                     st.write(questions)
                 except Exception as e:
                     st.error(f"Failed to generate quiz: {e}")
-    else:
-        st.warning("Please enter a valid YouTube URL.")
