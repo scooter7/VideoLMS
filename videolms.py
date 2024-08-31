@@ -64,12 +64,12 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
         )
         
         # Check if the completions list is empty
-        if not completions.choices:
+        if not completions.choices or len(completions.choices) == 0:
             st.error("No response received from the API.")
             return []
 
         # Extract the content from the response
-        completion_content = completions.choices[0].message.content.strip()
+        completion_content = completions.choices[0].message["content"].strip()
         questions = completion_content.split("\n\n")
 
         parsed_questions = []
@@ -140,8 +140,8 @@ if "transcript" in st.session_state:
 if "quiz_questions" in st.session_state:
     st.subheader("Generated Quiz Questions")
     
-    for idx, question in enumerate(st.session_state.quiz_questions, start=1):
-        st.write(f"**Question {idx}:** {question['question']}")
+    for idx, question in st.session_state.quiz_questions:
+        st.write(f"**Question {idx+1}:** {question['question']}")
         for option in question["options"]:
             st.write(f"- {option}")
         st.write(f"**Answer:** {question['answer']}")
