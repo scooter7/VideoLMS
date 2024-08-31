@@ -60,14 +60,15 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
                       {"role": "user", "content": prompt}],
             max_tokens=500,
         )
-        
-        # Ensure completions.choices exists and has elements
+
+        # Check if choices exist in the response
         if not completions.choices:
             st.error("No response received from the API. Check the model or input.")
             return []
 
         # Extract the content from the response
         completion_content = completions.choices[0].message.content.strip()
+        st.write("API Response:", completion_content)  # Log the response content for debugging
         questions = completion_content.split("\n\n")
 
         parsed_questions = []
@@ -88,6 +89,8 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
                         "options": parts[1:5],
                         "answer": parts[5].split(":")[1].strip()  # Assuming format: "Answer: Correct Option"
                     })
+                else:
+                    st.warning(f"Skipping invalid question format: {q}")
 
         return parsed_questions
 
