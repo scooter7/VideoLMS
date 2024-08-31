@@ -1,7 +1,8 @@
 streamlit
 Pillow
 youtube-transcript-api
-youtubesearchpython
+youtube-search-python
 pytube
-tinytag
 openai
+github
+streamlit-extras
