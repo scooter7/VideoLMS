@@ -26,12 +26,12 @@ st.write("Available columns:", df.columns)
 topic = st.radio("Select a Topic", df['Topic'].unique())
 
 # Display Video URLs
-videos = df[df['Topic'] == topic]['Video URL']  # Ensure this matches the correct column name from your CSV
+videos = df[df['Topic'] == topic]['URL']  # Updated to 'URL'
 for i, video in enumerate(videos):
     st.video(video)
     if st.button(f"I've watched this video {i+1}"):
         # Generate quiz
-        transcript = df[df['Video URL'] == video]['Transcript'].values[0]  # Ensure this matches the correct column name from your CSV
+        transcript = df[df['URL'] == video]['Transcript'].values[0]  # Updated to 'Transcript'
         quiz = generate_quiz(transcript)
         st.write(quiz)
 
@@ -39,9 +39,9 @@ for i, video in enumerate(videos):
 def generate_quiz(transcript):
     openai.api_key = openai_api_key
     prompt = f"Create a quiz with 5 questions based on this transcript: {transcript}"
-    response = openai.ChatCompletion.create(
+    completions = openai.ChatCompletion.create(
         model="gpt-4o-mini",
         messages=[{"role": "system", "content": prompt}]
     )
-    quiz = response.choices[0].message["content"]
+    quiz = completions.choices[0].message["content"]
     return quiz
