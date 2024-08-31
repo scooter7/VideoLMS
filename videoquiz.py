@@ -12,7 +12,7 @@ github_token = st.secrets["github"]["token"]
 def generate_quiz(transcript):
     openai.api_key = openai_api_key
     prompt = f"Create a quiz with 5 questions based on this transcript: {transcript}"
-    completions = openai.ChatCompletion.create(
+     completions = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "system", "content": prompt}]
     )
