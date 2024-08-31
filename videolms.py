@@ -3,7 +3,7 @@ import os
 import openai
 from github import Github, GithubException
 from pytube import Search
-from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
+from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound, CouldNotRetrieveTranscript
 
 # Set up Streamlit
 st.set_page_config(page_title="Video Learning App", layout="wide")
@@ -33,11 +33,12 @@ def get_top_videos(topic):
         if 'lengthSeconds' in video_details:
             video_duration = int(video_details['lengthSeconds'])
             
-            # Ensure the video duration is under 20 minutes (1200 seconds)
-            if video_duration <= 1200:
+            # Ensure the video duration is under 25 minutes (1500 seconds)
+            if video_duration <= 1500:
                 try:
-                    # Check if transcript is available
-                    YouTubeTranscriptApi.get_transcript(video_id)
+                    # Check if transcript is available in any language
+                    transcripts = YouTubeTranscriptApi.list_transcripts(video_id)
+                    transcript = transcripts.find_manually_created_transcript(['en'])
                     video_link = f"https://www.youtube.com/watch?v={video_id}"
                     filtered_videos.append({
                         "title": video.title,
@@ -46,7 +47,7 @@ def get_top_videos(topic):
                     })
                     if len(filtered_videos) == 5:
                         break
-                except (TranscriptsDisabled, NoTranscriptFound):
+                except (TranscriptsDisabled, NoTranscriptFound, CouldNotRetrieveTranscript):
                     continue
 
     if len(filtered_videos) < 5:
