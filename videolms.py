@@ -69,7 +69,7 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
             return []
 
         # Extract the content from the response
-        completion_content = completions.choices[0].message["content"].strip()
+        completion_content = completions.choices[0].message.content.strip()
         questions = completion_content.split("\n\n")
 
         parsed_questions = []
@@ -140,7 +140,7 @@ if "transcript" in st.session_state:
 if "quiz_questions" in st.session_state:
     st.subheader("Generated Quiz Questions")
     
-    for idx, question in st.session_state.quiz_questions:
+    for idx, question in enumerate(st.session_state.quiz_questions):
         st.write(f"**Question {idx+1}:** {question['question']}")
         for option in question["options"]:
             st.write(f"- {option}")
