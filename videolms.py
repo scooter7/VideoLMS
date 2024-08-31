@@ -1,6 +1,5 @@
 import streamlit as st
 import openai
-import random
 import os
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
 import yt_dlp
@@ -53,7 +52,6 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     """
 
     try:
-        # Initialize the OpenAI client with the API key
         client = openai.Client(api_key=st.secrets["openai"]["api_key"])
         
         completions = client.chat.completions.create(
@@ -63,9 +61,9 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
             max_tokens=500,
         )
         
-        # Check if the completions list is empty
-        if not completions.choices or len(completions.choices) == 0:
-            st.error("No response received from the API.")
+        # Ensure completions.choices exists and has elements
+        if not completions.choices:
+            st.error("No response received from the API. Check the model or input.")
             return []
 
         # Extract the content from the response
@@ -83,15 +81,20 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
                 })
             else:
                 parts = q.split("\n")
-                parsed_questions.append({
-                    "type": "mcq",
-                    "question": parts[0],
-                    "options": parts[1:5],
-                    "answer": parts[5].split(":")[1].strip()  # Assuming format: "Answer: Correct Option"
-                })
+                if len(parts) >= 5:  # Ensure there are enough parts to form a valid question
+                    parsed_questions.append({
+                        "type": "mcq",
+                        "question": parts[0],
+                        "options": parts[1:5],
+                        "answer": parts[5].split(":")[1].strip()  # Assuming format: "Answer: Correct Option"
+                    })
 
         return parsed_questions
 
+    except IndexError as e:
+        st.error("Failed to generate quiz questions: The API response was incomplete or malformed.")
+        st.error(f"Details: {e}")
+        return []
     except Exception as e:
         st.error(f"Failed to generate quiz questions: {e}")
         return []
