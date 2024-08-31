@@ -28,23 +28,26 @@ def get_top_videos(topic):
 
     for video in results:
         video_id = video.video_id
-        video_duration = video.length
+        video_details = video.vid_info.get('videoDetails', {})
 
-        # Ensure the video duration is available and is under 20 minutes (1200 seconds)
-        if video_duration and isinstance(video_duration, int) and video_duration <= 1200:
-            try:
-                # Check if transcript is available
-                YouTubeTranscriptApi.get_transcript(video_id)
-                video_link = f"https://www.youtube.com/watch?v={video_id}"
-                filtered_videos.append({
-                    "title": video.title,
-                    "link": video_link,
-                    "id": video_id
-                })
-                if len(filtered_videos) == 5:
-                    break
-            except (TranscriptsDisabled, NoTranscriptFound):
-                continue
+        if 'lengthSeconds' in video_details:
+            video_duration = int(video_details['lengthSeconds'])
+            
+            # Ensure the video duration is under 20 minutes (1200 seconds)
+            if video_duration <= 1200:
+                try:
+                    # Check if transcript is available
+                    YouTubeTranscriptApi.get_transcript(video_id)
+                    video_link = f"https://www.youtube.com/watch?v={video_id}"
+                    filtered_videos.append({
+                        "title": video.title,
+                        "link": video_link,
+                        "id": video_id
+                    })
+                    if len(filtered_videos) == 5:
+                        break
+                except (TranscriptsDisabled, NoTranscriptFound):
+                    continue
 
     if len(filtered_videos) < 5:
         st.error("Not enough videos with transcripts available. Please try a different topic or adjust the criteria.")
