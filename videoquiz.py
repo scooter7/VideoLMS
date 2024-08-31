@@ -70,6 +70,10 @@ topic = st.selectbox("Select a Topic", df['Topic'].unique())
 # Generate and display quiz without showing transcript
 if topic:
     transcript = df[df['Topic'] == topic]['Transcript'].values[0]
+    video_url = df[df['Topic'] == topic]['URL'].values[0]
+
+    # Display the embedded video
+    st.video(video_url)
 
     if st.button("Generate Quiz"):
         with st.spinner("Generating quiz..."):
@@ -95,4 +99,3 @@ if "quiz_questions" in st.session_state:
                 st.error(f"Incorrect. The correct answer was: {question['answer'].strip()}")
 
     st.write(f"Your total score: {score}/{len(st.session_state.quiz_questions)}")
-
