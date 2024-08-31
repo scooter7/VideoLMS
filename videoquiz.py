@@ -44,11 +44,13 @@ def parse_quiz(quiz_text):
                 questions.append(current_question)
             current_question = {"question": line, "options": [], "correct": None}
         elif line.startswith("a)") or line.startswith("b)") or line.startswith("c)") or line.startswith("d)"):
-            current_question["options"].append(line)
+            if current_question:
+                current_question["options"].append(line)
         elif "Correct Answer:" in line:
-            current_question["correct"] = line.split("Correct Answer: ")[1].strip()
+            if current_question:
+                current_question["correct"] = line.split("Correct Answer: ")[1].strip()
     
-    if current_question:
+    if current_question and current_question["options"]:  # Ensure last question is appended
         questions.append(current_question)
     
     return questions
@@ -81,16 +83,20 @@ for i, video in enumerate(videos):
         if questions:
             st.write("Quiz Generated from the Transcript:")
             score = 0
+            user_answers = []
             for idx, q in enumerate(questions):
                 st.write(q["question"])
                 user_answer = st.radio(f"Select your answer for Question {idx+1}", q["options"], key=f"q{idx}")
-                if st.button(f"Submit Answer for Question {idx+1}", key=f"submit{idx}"):
-                    if user_answer.endswith(q["correct"]):
-                        st.success(f"Correct!")
+                user_answers.append({"user_answer": user_answer, "correct_answer": q["correct"]})
+            
+            if st.button("Submit Quiz"):
+                for idx, answer in enumerate(user_answers):
+                    if answer["user_answer"].endswith(answer["correct_answer"]):
+                        st.success(f"Question {idx+1}: Correct!")
                         score += 1
                     else:
-                        st.error(f"Incorrect. The correct answer is {q['correct']}.")
-            st.write(f"Your total score: {score}/{len(questions)}")
+                        st.error(f"Question {idx+1}: Incorrect. The correct answer is {answer['correct_answer']}.")
+                st.write(f"Your total score: {score}/{len(questions)}")
         else:
             st.write("No quiz could be generated from the transcript.")
 
