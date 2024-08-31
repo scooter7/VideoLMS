@@ -103,8 +103,8 @@ if topic:
 
                 if st.button(f"Submit Answer for Question {idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
                     # Clean and normalize both user answer and correct answer
-                    correct_answer_clean = question["answer"].strip().lower()
-                    user_answer_clean = user_answer.strip().lower()
+                    correct_answer_clean = " ".join(question["answer"].split()).lower()
+                    user_answer_clean = " ".join(user_answer.split()).lower()
 
                     # Compare user answer with correct answer
                     if user_answer_clean == correct_answer_clean:
