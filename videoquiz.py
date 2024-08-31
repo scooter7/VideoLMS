@@ -19,16 +19,19 @@ def load_csv_from_github():
 # Load the CSV file
 df = load_csv_from_github()
 
+# Print column names to verify
+st.write("Available columns:", df.columns)
+
 # Topic Selection
 topic = st.radio("Select a Topic", df['Topic'].unique())
 
 # Display Video URLs
-videos = df[df['Topic'] == topic]['Video URL']
+videos = df[df['Topic'] == topic]['Video URL']  # Ensure this matches the correct column name from your CSV
 for i, video in enumerate(videos):
     st.video(video)
     if st.button(f"I've watched this video {i+1}"):
         # Generate quiz
-        transcript = df[df['Video URL'] == video]['Transcript'].values[0]
+        transcript = df[df['Video URL'] == video]['Transcript'].values[0]  # Ensure this matches the correct column name from your CSV
         quiz = generate_quiz(transcript)
         st.write(quiz)
 
