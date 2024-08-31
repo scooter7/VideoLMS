@@ -3,7 +3,6 @@ import json
 import os
 import openai
 from github import Github
-import yt2text
 from youtubesearchpython import VideosSearch
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
 from streamlit_extras.stylable_container import stylable_container
@@ -87,26 +86,29 @@ if st.session_state["videos"]:
 
             # Transcribe video immediately after being watched
             try:
-                transcription = yt2text.YT2text().extract(video_id=video["id"])
+                transcription = YouTubeTranscriptApi.get_transcript(video["id"])
+                transcription_text = " ".join([item['text'] for item in transcription])
                 file_path = f"Transcripts/{st.session_state['selected_topic'].replace(' ', '_')}/{video['id']}_transcription.txt"
-                repo.create_file(file_path, f"Add transcription for {video['title']}", transcription)
+                repo.create_file(file_path, f"Add transcription for {video['title']}", transcription_text)
                 st.success(f"Transcription saved for {video['title']}")
             except Exception as e:
                 st.error(f"Transcription failed for {video['title']} due to: {str(e)}")
+                transcription_text = None
             
             # Generate quiz questions
-            try:
-                prompt = f"Based on the following content, create 10 quiz questions:\n\n{transcription}"
-                response = openai.Completion.create(
-                    model="gpt-4o-mini",
-                    prompt=prompt,
-                    max_tokens=1000
-                )
-                questions = response.choices[0].text.strip().split("\n")
-                st.session_state[f"questions_{i}"] = questions
-                st.success(f"Quiz questions generated for {video['title']}")
-            except Exception as e:
-                st.error(f"Quiz generation failed for {video['title']} due to: {str(e)}")
+            if transcription_text:
+                try:
+                    prompt = f"Based on the following content, create 10 quiz questions:\n\n{transcription_text}"
+                    response = openai.Completion.create(
+                        model="gpt-4o-mini",
+                        prompt=prompt,
+                        max_tokens=1000
+                    )
+                    questions = response.choices[0].text.strip().split("\n")
+                    st.session_state[f"questions_{i}"] = questions
+                    st.success(f"Quiz questions generated for {video['title']}")
+                except Exception as e:
+                    st.error(f"Quiz generation failed for {video['title']} due to: {str(e)}")
 
 # Provide Quiz Interface and Scoring
 if all(st.session_state["watched_videos"]):
