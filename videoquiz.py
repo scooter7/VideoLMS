@@ -25,7 +25,7 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     """
 
     try:
-        completions = openai.Cchat.completions.create(
+        completions = openai.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}]
         )
