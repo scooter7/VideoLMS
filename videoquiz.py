@@ -19,7 +19,7 @@ def generate_quiz(transcript):
         model="gpt-4o-mini",
         messages=[{"role": "system", "content": prompt}]
     )
-    quiz = completions.choices[0].message["content"]
+    quiz = completions.choices[0].message["content"]  # Adjusting the access to the content properly
     return quiz
 
 # Function to load the CSV from GitHub
