@@ -29,7 +29,9 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
             messages=[{"role": "user", "content": prompt}]
         )
 
-        completion_content = completions.choices[0].message["content"].strip()
+        # Extract the content from the completion response
+        completion_content = completions.choices[0].message['content'].strip()
+
         questions = completion_content.split("\n\n")
 
         parsed_questions = []
