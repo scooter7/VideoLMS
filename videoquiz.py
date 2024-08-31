@@ -15,7 +15,7 @@ client = openai
 def generate_quiz(transcript):
     client.api_key = openai_api_key
     prompt = f"Create a quiz with 5 questions based on this transcript: {transcript}"
-    completions = client.ChatCompletion.create(
+    completions = client.Chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "system", "content": prompt}]
     )
