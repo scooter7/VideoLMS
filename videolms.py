@@ -39,41 +39,51 @@ def transcribe_with_whisper(video_url: str) -> str:
         st.error(f"Failed to transcribe video using Whisper: {e}")
         return None
 
-# Function to generate quiz questions from transcript
+# Function to generate quiz questions using GPT-4o-mini
 def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     questions = []
-    sentences = transcript.split(". ")
-    
-    for _ in range(num_questions):
-        sentence = random.choice(sentences).strip()
+
+    prompt = f"""
+    You are an expert quiz generator. Based on the following transcript, create {num_questions} quiz questions.
+    Each question should be either a multiple-choice question (with 4 options) or a true/false question.
+    Provide the correct answer for each question.
+
+    Transcript:
+    {transcript}
+    """
+
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "system", "content": "You are a helpful assistant."},
+                      {"role": "user", "content": prompt}],
+            max_tokens=500,
+        )
         
-        if random.choice([True, False]):
-            # True/False question
-            question = {
-                "type": "true_false",
-                "question": f"Is the following statement true or false? '{sentence}'",
-                "options": ["True", "False"],
-                "answer": "True"
-            }
-        else:
-            # Multiple choice question
-            wrong_options = [
-                "Not Sure",
-                "Maybe",
-                "Unrelated",
-                "None of the above"
-            ]
-            correct_answer = "True"
-            question = {
-                "type": "mcq",
-                "question": f"What does this statement imply? '{sentence}'",
-                "options": ["True", "False"] + random.sample(wrong_options, 2),
-                "answer": correct_answer
-            }
-        
-        questions.append(question)
-    
-    return questions
+        questions = response.choices[0].message["content"].strip().split("\n\n")
+        parsed_questions = []
+        for q in questions:
+            if "True/False" in q:
+                parsed_questions.append({
+                    "type": "true_false",
+                    "question": q.split("\n")[0],
+                    "options": ["True", "False"],
+                    "answer": "True" if "True" in q else "False"
+                })
+            else:
+                parts = q.split("\n")
+                parsed_questions.append({
+                    "type": "mcq",
+                    "question": parts[0],
+                    "options": parts[1:5],
+                    "answer": parts[5].split(":")[1].strip()  # Assuming format: "Answer: Correct Option"
+                })
+
+        return parsed_questions
+
+    except Exception as e:
+        st.error(f"Failed to generate quiz questions: {e}")
+        return []
 
 # Streamlit App
 st.title("YouTube Video Transcript and Quiz Generator")
