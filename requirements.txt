@@ -2,5 +2,5 @@ streamlit
 openai
 PyGithub
 youtube-transcript-api
-youtubesearchpython
+youtube-search-python
 streamlit-extras
