@@ -2,4 +2,4 @@ streamlit
 youtube-transcript-api
 yt-dlp
 openai
-github
+PyGithub
