@@ -3,8 +3,8 @@ from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound
 from yt_dlp import YoutubeDL
 import openai
 from github import Github
-import json
-import random
+import whisper
+import os
 
 # Initialize OpenAI and GitHub
 openai.api_key = st.secrets["openai"]["api_key"]
@@ -21,6 +21,23 @@ def fetch_transcript(video_id: str) -> str:
     except Exception as e:
         st.error(f"Failed to fetch transcript: {e}")
         return None
+
+# Function to download video using yt-dlp
+def download_video(video_url: str) -> str:
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'outtmpl': 'downloaded_video.%(ext)s',
+        'quiet': True
+    }
+    with YoutubeDL(ydl_opts) as ydl:
+        ydl.download([video_url])
+    return "downloaded_video.m4a"
+
+# Function to transcribe video using Whisper
+def transcribe_with_whisper(file_path: str) -> str:
+    model = whisper.load_model("base")
+    result = model.transcribe(file_path)
+    return result['text']
 
 # Function to save transcript to GitHub
 def save_transcript_to_github(video_id: str, transcript: str):
@@ -40,7 +57,7 @@ def generate_quiz(transcript: str) -> list:
             continue
         question_type = random.choice(["mcq", "tf"])
         if question_type == "mcq":
-            question = {"type": "mcq", "question": f"What does this statement imply? '{sentence}'", "options": ["True", "False", "Not Sure", "Maybe"], "answer": "True"}
+            question = {"type": "mcq", "question": f"What does this statement imply? '{sentence}'", "options": ["True", "False", Not Sure", "Maybe"], "answer": "True"}
         else:
             question = {"type": "tf", "question": f"True or False: '{sentence}'", "answer": "True"}
         questions.append(question)
@@ -59,6 +76,14 @@ if st.button("Fetch Transcript and Generate Quiz"):
         
         with st.spinner("Fetching transcript..."):
             transcript = fetch_transcript(video_id)
+        
+        if not transcript:
+            st.warning("No transcript found, trying Whisper...")
+            with st.spinner("Downloading video for transcription..."):
+                video_file = download_video(video_url)
+            with st.spinner("Transcribing video with Whisper..."):
+                transcript = transcribe_with_whisper(video_file)
+            os.remove(video_file)  # Clean up downloaded video file
         
         if transcript:
             st.success("Transcript fetched successfully!")
