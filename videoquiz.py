@@ -131,6 +131,9 @@ if topic:
                     correct_answer_clean = question["answer"].strip().lower().replace(" ", "")
                     user_answer_clean = user_answer.strip().lower().replace(" ", "")
 
+                    # Log comparison for debugging
+                    st.write(f"Debug: Correct answer: '{correct_answer_clean}', User answer: '{user_answer_clean}'")
+
                     # Compare user answer with correct answer
                     if user_answer_clean == correct_answer_clean:
                         st.success("Correct!")
