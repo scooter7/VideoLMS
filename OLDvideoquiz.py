@@ -30,30 +30,36 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
         )
 
         # Extract the content from the completion response
-        completion_content = completions.choices[0].message.content.strip()
+        if completions.choices and completions.choices[0].message.content:
+            completion_content = completions.choices[0].message.content.strip()
+            questions = completion_content.split("\n\n")
 
-        questions = completion_content.split("\n\n")
+            parsed_questions = []
+            for q in questions:
+                lines = q.split("\n")
+                if len(lines) >= 2:
+                    question_text = lines[0].strip()
+                    options = [line.strip() for line in lines[1:] if line.strip()]
+                    
+                    # Extract the correct answer, removing asterisks and unnecessary spaces
+                    answer = None
+                    if "Answer:" in options[-1]:
+                        answer = options[-1].split("Answer:")[1].strip("*").strip()
+                        options = options[:-1]
 
-        parsed_questions = []
-        for q in questions:
-            if "True or False" in q:
-                parsed_questions.append({
-                    "type": "true_false",
-                    "question": q.split("\n")[0],
-                    "options": ["True", "False"],
-                    "answer": "True" if "True" in q else "False"
-                })
-            else:
-                parts = q.split("\n")
-                if len(parts) >= 5:  # Ensure there are enough parts to form a valid question
                     parsed_questions.append({
-                        "type": "mcq",
-                        "question": parts[0],
-                        "options": parts[1:5],
-                        "answer": parts[5].split(":")[1].strip("*").strip()  # Remove asterisks and whitespace
+                        "question": question_text,
+                        "options": options,
+                        "answer": answer
                     })
 
-        return parsed_questions
+            if not parsed_questions:
+                st.error("No valid quiz questions could be generated. Please try again with a different video.")
+            return parsed_questions
+
+        else:
+            st.error("Failed to generate a valid response from the OpenAI API. The response might be incomplete or malformed.")
+            return []
 
     except Exception as e:
         st.error(f"Failed to generate quiz questions: {e}")
@@ -70,34 +76,63 @@ df = load_csv_from_github()
 topic = st.selectbox("Select a Topic", df['Topic'].unique())
 
 if topic:
-    transcript = df[df['Topic'] == topic]['Transcript'].values[0]
-    video_url = df[df['Topic'] == topic]['URL'].values[0]
+    # Filter the DataFrame for the selected topic
+    filtered_df = df[df['Topic'] == topic]
 
-    # Display the embedded video
-    st.video(video_url)
+    # Initialize score tracking
+    total_score = 0
+    total_questions = 0
 
-    # "Watched Video" button to trigger quiz generation
-    if st.button("I've watched this video"):
-        with st.spinner("Generating quiz..."):
-            quiz_questions = generate_quiz_questions(transcript)
-            st.session_state.quiz_questions = quiz_questions
-            st.success("Quiz generated!")
+    # Display all videos for the selected topic
+    for index, row in filtered_df.iterrows():
+        video_url = row['URL']
+        transcript = row['Transcript']
+        
+        # Display the embedded video
+        st.video(video_url)
 
-# Display the generated quiz questions interactively
-if "quiz_questions" in st.session_state:
-    st.subheader("Generated Quiz")
+        # "Watched Video" button to trigger quiz generation
+        if st.button(f"I've watched this video {index + 1}"):
+            with st.spinner("Generating quiz..."):
+                quiz_questions = generate_quiz_questions(transcript)
+                st.session_state[f'quiz_questions_{index}'] = quiz_questions
+                if quiz_questions:
+                    st.success(f"Quiz generated for video {index + 1}!")
+                else:
+                    st.error(f"Failed to generate quiz for video {index + 1}.")
 
-    score = 0
-    for idx, question in enumerate(st.session_state.quiz_questions):
-        st.write(f"**Question {idx+1}:** {question['question']}")
-        user_answer = st.radio(f"Your answer for Question {idx+1}:", question["options"], key=f"q{idx}")
+        # Display the generated quiz questions interactively
+        if f'quiz_questions_{index}' in st.session_state:
+            st.subheader(f"Quiz for Video {index + 1}")
 
-        if st.button(f"Submit Answer for Question {idx+1}", key=f"submit{idx}"):
-            # Compare user answer with correct answer
-            if user_answer.strip() == question["answer"].strip():
-                st.success("Correct!")
-                score += 1
-            else:
-                st.error(f"Incorrect. The correct answer was: {question['answer']}")
+            video_score = 0
+            for idx, question in enumerate(st.session_state[f'quiz_questions_{index}']):
+                st.write(f"**Question {idx + 1}:** {question['question']}")
+                user_answer = st.radio(f"Your answer for Question {idx + 1}:", question["options"], key=f"q_{index}_{idx}")
 
-    st.write(f"Your total score: {score}/{len(st.session_state.quiz_questions)}")
+                if st.button(f"Submit Answer for Question {idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
+                    # Check if the answer is None and handle appropriately
+                    if question["answer"] is None:
+                        st.warning("No correct answer available for this question. Skipping...")
+                        continue
+                    
+                    # Normalize both answers for comparison
+                    correct_answer_clean = question["answer"].strip().lower().replace(" ", "")
+                    user_answer_clean = user_answer.strip().lower().replace(" ", "")
+
+                    # Compare user answer with correct answer
+                    if user_answer_clean == correct_answer_clean:
+                        st.success("Correct!")
+                        video_score += 1
+                    else:
+                        st.error(f"Incorrect. The correct answer was: {question['answer']}")
+
+            st.write(f"Your score for Video {index + 1}: {video_score}/{len(st.session_state[f'quiz_questions_{index}'])}")
+            
+            # Update the total score and total questions count
+            total_score += video_score
+            total_questions += len(st.session_state[f'quiz_questions_{index}'])
+
+    # Display total score across all quizzes
+    if total_questions > 0:
+        st.write(f"**Your total score across all videos: {total_score}/{total_questions}**")
