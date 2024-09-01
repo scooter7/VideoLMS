@@ -40,12 +40,17 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
                 if len(lines) >= 2:
                     question_text = lines[0].strip()
                     options = [line.strip() for line in lines[1:] if line.strip()]
-                    
-                    # Extract the correct answer, removing asterisks and unnecessary spaces
-                    answer = None
-                    if "Answer:" in options[-1]:
-                        answer = options[-1].split("Answer:")[1].strip("*").strip()
-                        options = options[:-1]
+
+                    # Handle True/False questions properly
+                    if len(options) == 1 and ("True" in options[0] or "False" in options[0]):
+                        options = ["True", "False"]
+                        answer = "True" if "True" in options[0] else "False"
+                    else:
+                        # Extract the correct answer for multiple-choice questions
+                        answer = None
+                        if "Answer:" in options[-1]:
+                            answer = options[-1].split("Answer:")[1].strip("*").strip()
+                            options = options[:-1]
 
                     parsed_questions.append({
                         "question": question_text,
@@ -108,7 +113,13 @@ if topic:
             video_score = 0
             for idx, question in enumerate(st.session_state[f'quiz_questions_{index}']):
                 st.write(f"**Question {idx + 1}:** {question['question']}")
-                user_answer = st.radio(f"Your answer for Question {idx + 1}:", question["options"], key=f"q_{index}_{idx}")
+
+                # Display radio buttons for multiple-choice or True/False questions
+                if question["options"]:
+                    user_answer = st.radio(f"Your answer for Question {idx + 1}:", question["options"], key=f"q_{index}_{idx}")
+                else:
+                    st.warning("No options available for this question. Skipping...")
+                    continue
 
                 if st.button(f"Submit Answer for Question {idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
                     # Check if the answer is None and handle appropriately
@@ -119,6 +130,9 @@ if topic:
                     # Normalize both answers for comparison
                     correct_answer_clean = question["answer"].strip().lower().replace(" ", "")
                     user_answer_clean = user_answer.strip().lower().replace(" ", "")
+
+                    # Log comparison for debugging
+                    st.write(f"Debug: Correct answer: '{correct_answer_clean}', User answer: '{user_answer_clean}'")
 
                     # Compare user answer with correct answer
                     if user_answer_clean == correct_answer_clean:
