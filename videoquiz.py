@@ -40,8 +40,12 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
                 if len(lines) >= 2:
                     question_text = lines[0].strip()
                     options = [line.strip() for line in lines[1:] if line.strip()]
-                    answer = options[-1].split(":")[1].strip("*").strip() if "Answer:" in options[-1] else None
-                    options = options[:-1] if answer else options
+                    
+                    # Extract the correct answer, removing asterisks and unnecessary spaces
+                    answer = None
+                    if "Answer:" in options[-1]:
+                        answer = options[-1].split("Answer:")[1].strip("*").strip()
+                        options = options[:-1]
 
                     parsed_questions.append({
                         "question": question_text,
@@ -108,7 +112,7 @@ if topic:
 
                 if st.button(f"Submit Answer for Question {idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
                     # Clean and normalize both user answer and correct answer
-                    correct_answer_clean = " ".join(question["answer"].split()).lower()
+                    correct_answer_clean = " ".join(question["answer"].split()).lower() if question["answer"] else ""
                     user_answer_clean = " ".join(user_answer.split()).lower()
 
                     # Compare user answer with correct answer
