@@ -117,8 +117,8 @@ if topic:
                         continue
                     
                     # Normalize both answers for comparison
-                    correct_answer_clean = question["answer"].strip().lower()
-                    user_answer_clean = user_answer.strip().lower()
+                    correct_answer_clean = question["answer"].strip().lower().replace(" ", "")
+                    user_answer_clean = user_answer.strip().lower().replace(" ", "")
 
                     # Compare user answer with correct answer
                     if user_answer_clean == correct_answer_clean:
