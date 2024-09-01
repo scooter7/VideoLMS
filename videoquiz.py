@@ -42,7 +42,8 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
                     options = [line.strip() for line in lines[1:] if line.strip()]
 
                     # Handle True/False questions properly
-                    if len(options) == 2 and options[0].lower() in ["true", "false"]:
+                    if len(options) == 1 and ("True" in options[0] or "False" in options[0]):
+                        options = ["True", "False"]
                         answer = "True" if "True" in options[0] else "False"
                     else:
                         # Extract the correct answer for multiple-choice questions
