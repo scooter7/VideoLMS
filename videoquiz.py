@@ -101,6 +101,7 @@ if topic:
             with st.spinner("Generating quiz..."):
                 quiz_questions = generate_quiz_questions(transcript)
                 st.session_state[f'quiz_questions_{index}'] = quiz_questions
+                st.session_state[f'quiz_answers_{index}'] = [None] * len(quiz_questions)
                 if quiz_questions:
                     st.success(f"Quiz generated for video {index + 1}!")
                 else:
@@ -121,6 +122,9 @@ if topic:
                     st.warning("No options available for this question. Skipping...")
                     continue
 
+                # Store the user's answer
+                st.session_state[f'quiz_answers_{index}'][idx] = user_answer
+
                 if st.button(f"Submit Answer for Question {idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
                     # Check if the answer is None and handle appropriately
                     if question["answer"] is None:
@@ -133,9 +137,6 @@ if topic:
 
                     # Ensure no extra characters like hyphens are present
                     user_answer_clean = user_answer_clean.lstrip('-')
-
-                    # Log comparison for debugging
-                    st.write(f"Debug: Correct answer: '{correct_answer_clean}', User answer: '{user_answer_clean}'")
 
                     # Compare user answer with correct answer
                     if user_answer_clean == correct_answer_clean:
