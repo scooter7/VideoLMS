@@ -101,6 +101,7 @@ if topic:
             with st.spinner("Generating quiz..."):
                 quiz_questions = generate_quiz_questions(transcript)
                 st.session_state[f'quiz_questions_{index}'] = quiz_questions
+                # Initialize session state to store the user's answers
                 st.session_state[f'quiz_answers_{index}'] = [None] * len(quiz_questions)
                 if quiz_questions:
                     st.success(f"Quiz generated for video {index + 1}!")
