@@ -131,6 +131,9 @@ if topic:
                     correct_answer_clean = question["answer"].strip().lower().replace(" ", "")
                     user_answer_clean = user_answer.strip().lower().replace(" ", "")
 
+                    # Ensure no extra characters like hyphens are present
+                    user_answer_clean = user_answer_clean.lstrip('-')
+
                     # Log comparison for debugging
                     st.write(f"Debug: Correct answer: '{correct_answer_clean}', User answer: '{user_answer_clean}'")
 
