@@ -248,7 +248,7 @@ if "username" in st.session_state:
                     else:
                         st.error(f"Failed to generate quiz for video {index + 1}.")
 
-            if st.session_state.get(f'quiz_questions_{index}']):
+            if st.session_state.get(f'quiz_questions_{index}'):
                 st.subheader(f"Quiz for Video {index + 1}")
 
                 for idx, question in enumerate(st.session_state[f'quiz_questions_{index}']):
