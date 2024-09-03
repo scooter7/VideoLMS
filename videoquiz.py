@@ -135,8 +135,10 @@ if topic:
                 st.session_state[f'quiz_questions_{index}'] = quiz_questions
                 st.session_state[f'quiz_answers_{index}'] = [None] * len(quiz_questions)
                 st.session_state[f'quiz_scores_{index}'] = 0  # Initialize score for this quiz
-                st.session_state[f'quiz_submitted_{index}'] = False  # Track if the quiz was submitted
                 if quiz_questions:
+                    for idx, _ in enumerate(quiz_questions):
+                        # Initialize submission tracking for each question
+                        st.session_state[f'quiz_submitted_{index}_{idx}'] = False
                     st.success(f"Quiz generated for video {index + 1}!")
                 else:
                     st.error(f"Failed to generate quiz for video {index + 1}.")
