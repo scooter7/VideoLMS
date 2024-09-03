@@ -99,8 +99,7 @@ def chunk_text(text, max_chunk_size=3000):
     return chunks
 
 def clean_answer(answer):
-    answer = answer.replace("Answer:", "").strip()  # Remove 'Answer:' prefix if it exists
-    answer = answer.lower()  # Convert to lowercase
+    answer = answer.replace("Answer:", "").strip().lower()  # Remove 'Answer:' prefix and convert to lowercase
     if "true" in answer:
         return "true"
     elif "false" in answer:
@@ -299,7 +298,7 @@ if "username" in st.session_state:
                     else:
                         st.error(f"Failed to generate quiz for video {index + 1}.")
 
-            if st.session_state.get(f'quiz_questions_{index}'):
+            if st.session_state.get(f'quiz_questions_{index}']):
                 st.subheader(f"Quiz for Video {index + 1}")
 
                 for idx, question in enumerate(st.session_state[f'quiz_questions_{index}']):
