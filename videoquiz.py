@@ -119,7 +119,7 @@ def parse_questions_from_response(response_text):
         if len(lines) >= 7:  # Ensure there are enough lines for a question, 4 options, answer, and explanation
             question = {
                 "question": lines[0].strip(),
-                "options": [lines[1].strip(), lines[2].strip(), lines[3].strip(), lines[4].strip()],
+                "options": [lines[1].strip(), lines[2].strip(), lines[3.strip(), lines[4].strip()],
                 "answer": lines[5].strip(),
                 "explanation": lines[6].strip()
             }
