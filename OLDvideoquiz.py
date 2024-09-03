@@ -15,15 +15,11 @@ def load_csv_from_github():
 # Function to generate quiz questions using GPT-4o-mini
 def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     prompt = f"""
-    You are an expert quiz generator. Based on the following transcript, create {num_questions} quiz questions.
-    Each question should be either a multiple-choice question (with 4 options) or a true/false question.
-    Ensure that each correct answer is accurate, logically consistent, and clearly derived from the content of the transcript.
-    All questions should be clearly formatted and avoid using characters like hyphens, asterisks, or unnecessary spaces.
-    For multiple-choice questions, ensure there are exactly 4 answer choices.
-    For true/false questions, use only "True" and "False" as the options.
-    Provide the correct answer and a separate explanation, but do not include the explanation as part of the answer choices.
-
-    Example question formatting:
+    You are an expert quiz generator. Based on the following transcript, create {num_questions} multiple-choice quiz questions.
+    Each correct answer must be accurate, logically consistent, and clearly derived from the content of the transcript.
+    All questions should be multiple-choice with exactly 4 options.
+    
+    Example of a valid multiple-choice question:
     Question: What is the capital of France?
     A) Paris
     B) London
@@ -31,6 +27,8 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     D) Madrid
     Answer: A) Paris
     Explanation: Paris is the capital of France.
+
+    Generate exactly {num_questions} questions.
 
     Transcript:
     {transcript}
@@ -42,7 +40,6 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
             messages=[{"role": "user", "content": prompt}]
         )
 
-        # Extract the content from the completion response
         if completions.choices and completions.choices[0].message.content:
             completion_content = completions.choices[0].message.content.strip()
             questions = completion_content.split("\n\n")
@@ -50,7 +47,6 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
             parsed_questions = []
             for q in questions:
                 lines = [line.strip() for line in q.split("\n") if line.strip()]
-
                 if len(lines) >= 2:
                     question_text = lines[0]
                     options = [line for line in lines[1:] if line and not line.startswith("Answer:") and not line.startswith("Explanation:")]
@@ -67,12 +63,7 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
                         if line.startswith("Explanation:"):
                             explanation = line.split("Explanation:")[1].strip()
 
-                    # Ensure True/False options are handled correctly
-                    if len(options) == 1 and ("True" in options[0] or "False" in options[0]):
-                        options = ["True", "False"]
-
-                    # Skip any questions that don't have the correct number of options
-                    if len(options) == 2 and all(opt in ["True", "False"] for opt in options) or len(options) == 4:
+                    if len(options) == 4:
                         parsed_questions.append({
                             "question": question_text,
                             "options": options,
@@ -80,8 +71,15 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
                             "explanation": explanation
                         })
 
-            if not parsed_questions:
-                st.error("No valid quiz questions could be generated. Please try again with a different video.")
+            # Ensure we have exactly 5 questions
+            if len(parsed_questions) < num_questions:
+                st.error("Failed to generate the required number of quiz questions. Please try again.")
+                return []
+
+            # Properly number the questions sequentially
+            for i, question in enumerate(parsed_questions, 1):
+                question["question"] = f"Question {i}: {question['question'].split(':')[-1].strip()}"
+
             return parsed_questions
 
         else:
@@ -148,11 +146,11 @@ if topic:
             st.subheader(f"Quiz for Video {index + 1}")
 
             for idx, question in enumerate(st.session_state[f'quiz_questions_{index}']):
-                st.write(f"**Question {idx + 1}:** {question['question']}")
+                st.write(f"**{question['question']}**")
 
                 # Display radio buttons for multiple-choice or True/False questions
                 if question["options"]:
-                    user_answer = st.radio(f"Your answer for Question {idx + 1}:", question["options"], key=f"q_{index}_{idx}")
+                    user_answer = st.radio(f"Your answer for {question['question'].split(':')[0]}:", question["options"], key=f"q_{index}_{idx}")
                 else:
                     st.warning("No options available for this question. Skipping...")
                     continue
@@ -162,7 +160,7 @@ if topic:
 
                 # Show the Submit Answer button for each question
                 if not st.session_state[f'quiz_submitted_{index}_{idx}']:
-                    if st.button(f"Submit Answer for Question {idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
+                    if st.button(f"Submit Answer for {question['question'].split(':')[0]} - Video {index + 1}", key=f"submit_{index}_{idx}"):
                         # Check if the answer is None and handle appropriately
                         if question["answer"] is None:
                             st.warning("No correct answer available for this question. Skipping...")
