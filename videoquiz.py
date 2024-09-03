@@ -1,42 +1,69 @@
 import streamlit as st
 import pandas as pd
-import openai
+import requests
+import json
+import base64
 
 openai.api_key = st.secrets["openai"]["api_key"]
 
 # Constants
-USER_DATA_FILE = 'https://raw.githubusercontent.com/scooter7/VideoLMS/main/UsersandScores/users.csv'
-SCORES_DATA_FILE = 'https://raw.githubusercontent.com/scooter7/VideoLMS/main/UsersandScores/scores.csv'
+GITHUB_API_URL = "https://api.github.com"
+REPO_OWNER = st.secrets["github"]["username"]
+REPO_NAME = "VideoLMS"
+USER_DATA_FILE_PATH = "UsersandScores/users.csv"
+SCORES_DATA_FILE_PATH = "UsersandScores/scores.csv"
+GITHUB_TOKEN = st.secrets["github"]["token"]
 
-@st.cache_data
-def load_csv_from_github():
-    url = "https://raw.githubusercontent.com/scooter7/VideoLMS/main/Transcripts/YouTube%20Transcripts%20-%20Sheet1.csv"
-    df = pd.read_csv(url)
-    return df
+def get_file_sha(file_path):
+    url = f"{GITHUB_API_URL}/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_path}"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return response.json()["sha"]
+    return None
+
+def upload_file_to_github(file_path, content, message):
+    url = f"{GITHUB_API_URL}/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_path}"
+    headers = {
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    sha = get_file_sha(file_path)
+    data = {
+        "message": message,
+        "content": base64.b64encode(content.encode("utf-8")).decode("utf-8"),
+        "branch": "main"
+    }
+    if sha:
+        data["sha"] = sha
+
+    response = requests.put(url, headers=headers, data=json.dumps(data))
+    if response.status_code == 200:
+        st.success(f"Successfully updated {file_path} in the GitHub repository.")
+    else:
+        st.error(f"Failed to update {file_path} in the GitHub repository: {response.text}")
 
 def load_users():
-    try:
-        return pd.read_csv(USER_DATA_FILE)
-    except:
-        return pd.DataFrame(columns=["username", "password"])
+    url = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/main/{USER_DATA_FILE_PATH}"
+    return pd.read_csv(url)
 
 def load_scores():
-    try:
-        return pd.read_csv(SCORES_DATA_FILE)
-    except:
-        return pd.DataFrame(columns=["username", "video_id", "score"])
+    url = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/main/{SCORES_DATA_FILE_PATH}"
+    return pd.read_csv(url)
 
 def save_user(username, password):
     users = load_users()
     new_user = pd.DataFrame({"username": [username], "password": [password]})
     users = pd.concat([users, new_user], ignore_index=True)
-    users.to_csv(USER_DATA_FILE, index=False)
+    csv_content = users.to_csv(index=False)
+    upload_file_to_github(USER_DATA_FILE_PATH, csv_content, "Add new user")
 
 def save_score(username, video_id, score):
     scores = load_scores()
     new_score = pd.DataFrame({"username": [username], "video_id": [video_id], "score": [score]})
     scores = pd.concat([scores, new_score], ignore_index=True)
-    scores.to_csv(SCORES_DATA_FILE, index=False)
+    csv_content = scores.to_csv(index=False)
+    upload_file_to_github(SCORES_DATA_FILE_PATH, csv_content, "Add new score")
 
 def authenticate(username, password):
     users = load_users()
