@@ -247,6 +247,12 @@ if "is_admin" in st.session_state and st.session_state["is_admin"]:
     st.write("### Quiz Scores")
     st.dataframe(scores)
 
+    if st.sidebar.button("Logout Admin"):
+        del st.session_state["username"]
+        del st.session_state["is_admin"]
+        st.sidebar.success("Logged out successfully!")
+        st.experimental_set_query_params()  # Reset the app's state
+
 if "username" in st.session_state:
     st.title("Transcript-based Quiz Generator")
     st.markdown("Generate quizzes from transcripts in a CSV file hosted on GitHub.")
