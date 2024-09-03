@@ -168,43 +168,42 @@ if topic:
                     st.error(f"Failed to generate quiz for video {index + 1}.")
 
         if st.session_state.get(f'quiz_questions_{index}'):
-    st.session_state['explanation_displayed'] = False
-    st.subheader(f"Quiz for Video {index + 1}")
+            st.session_state['explanation_displayed'] = False
+            st.subheader(f"Quiz for Video {index + 1}")
 
-    for idx, question in enumerate(st.session_state[f'quiz_questions_{index}']):
-        st.write(f"**{question['question']}**")
+            for idx, question in enumerate(st.session_state[f'quiz_questions_{index}']):
+                st.write(f"**{question['question']}**")
 
-        if question["options"]:
-            user_answer = st.radio(f"Your answer for {question['question'].split(':')[0]}:", question["options"], key=f"q_{index}_{idx}")
-        else:
-            st.warning("No options available for this question. Skipping...")
-            continue
-
-        if not st.session_state[f'quiz_submitted_{index}_{idx}']:
-            if st.button(f"Submit Answer for {question['question'].split(':')[0]} - Video {index + 1}", key=f"submit_{index}_{idx}"):
-                if question["answer"] is None:
-                    st.warning("No correct answer available for this question. Skipping...")
-                    continue
-                
-                correct_answer_clean = question["answer"].strip().lower().replace(" ", "")
-                user_answer_clean = user_answer.strip().lower().replace(" ", "")
-
-                if user_answer_clean == correct_answer_clean:
-                    st.success("Correct!")
-                    st.session_state[f'quiz_scores_{index}'] += 1
+                if question["options"]:
+                    user_answer = st.radio(f"Your answer for {question['question'].split(':')[0]}:", question["options"], key=f"q_{index}_{idx}")
                 else:
-                    st.error(f"Incorrect. The correct answer was: {question['answer']}")
+                    st.warning("No options available for this question. Skipping...")
+                    continue
 
-                st.session_state[f'quiz_submitted_{index}_{idx}'] = True
+                if not st.session_state[f'quiz_submitted_{index}_{idx}']:
+                    if st.button(f"Submit Answer for {question['question'].split(':')[0]} - Video {index + 1}", key=f"submit_{index}_{idx}"):
+                        if question["answer"] is None:
+                            st.warning("No correct answer available for this question. Skipping...")
+                            continue
+                        
+                        correct_answer_clean = question["answer"].strip().lower().replace(" ", "")
+                        user_answer_clean = user_answer.strip().lower().replace(" ", "")
 
-                if question.get('explanation'):
+                        if user_answer_clean == correct_answer_clean:
+                            st.success("Correct!")
+                            st.session_state[f'quiz_scores_{index}'] += 1
+                        else:
+                            st.error(f"Incorrect. The correct answer was: {question['answer']}")
+
+                        st.session_state[f'quiz_submitted_{index}_{idx}'] = True
+
+                        if question.get('explanation'):
+                            st.info(f"Explanation: {question['explanation']}")
+                            st.session_state['explanation_displayed'] = True
+
+                if st.session_state[f'quiz_submitted_{index}_{idx}'] and not st.session_state['explanation_displayed']:
                     st.info(f"Explanation: {question['explanation']}")
                     st.session_state['explanation_displayed'] = True
-
-        if st.session_state[f'quiz_submitted_{index}_{idx}'] and not st.session_state['explanation_displayed']:
-            st.info(f"Explanation: {question['explanation']}")
-            st.session_state['explanation_displayed'] = True
-
 
             st.write(f"Your score for Video {index + 1}: {st.session_state[f'quiz_scores_{index}']}/{len(st.session_state[f'quiz_questions_{index}'])}")
 
