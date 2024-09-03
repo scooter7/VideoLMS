@@ -99,8 +99,9 @@ def chunk_text(text, max_chunk_size=3000):
 def clean_answer(answer):
     """
     Cleans the answer string by removing any unwanted characters like hyphens, asterisks,
-    extra spaces, etc., and converts it to a consistent format for comparison.
+    extra spaces, and prefixes like 'Answer:'.
     """
+    answer = answer.replace("Answer:", "").strip()  # Remove 'Answer:' prefix if it exists
     return re.sub(r'[^a-zA-Z0-9]', '', answer).strip().lower()
 
 def parse_questions_from_response(response_text):
