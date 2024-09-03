@@ -5,10 +5,8 @@ import json
 import base64
 import openai
 
-# Set the OpenAI API key
 openai.api_key = st.secrets["openai"]["api_key"]
 
-# Constants
 GITHUB_API_URL = "https://api.github.com"
 REPO_OWNER = st.secrets["github"]["username"]
 REPO_NAME = "VideoLMS"
@@ -47,11 +45,19 @@ def upload_file_to_github(file_path, content, message):
 
 def load_users():
     url = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/main/{USER_DATA_FILE_PATH}"
-    return pd.read_csv(url)
+    try:
+        return pd.read_csv(url)
+    except Exception as e:
+        st.warning(f"Could not load users. Creating a new file: {e}")
+        return pd.DataFrame(columns=["username", "password"])
 
 def load_scores():
     url = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/main/{SCORES_DATA_FILE_PATH}"
-    return pd.read_csv(url)
+    try:
+        return pd.read_csv(url)
+    except Exception as e:
+        st.warning(f"Could not load scores. Creating a new file: {e}")
+        return pd.DataFrame(columns=["username", "video_id", "score"])
 
 def save_user(username, password):
     users = load_users()
@@ -94,7 +100,7 @@ def generate_quiz_questions_for_chunk(chunk: str) -> list:
     You are an expert quiz generator. Based on the following transcript, create three multiple-choice quiz questions and two true/false questions.
     Each correct answer must be accurate, logically consistent, and clearly derived from the content of the transcript.
     All multiple choice questions should have exactly 4 options and all true/false questions should only have two options (true and false).
-    
+
     Example of a valid multiple-choice question:
     Question: What is the capital of France?
     A) Paris
@@ -149,10 +155,8 @@ def generate_combined_quiz_questions(transcript: str) -> list:
         all_questions.extend(questions)
     return all_questions
 
-# Streamlit app code
 st.title("Video Quiz Generator")
 
-# Authentication and User Session Management
 if "username" not in st.session_state:
     st.sidebar.title("Login / Register")
 
@@ -186,7 +190,6 @@ else:
         del st.session_state["username"]
         st.sidebar.success("Logged out successfully!")
 
-# Admin Page
 if "username" in st.session_state and st.session_state["username"] == "james@shmooze.io":
     st.sidebar.title("Admin Page")
     admin_password = st.sidebar.text_input("Admin Password", type="password")
@@ -203,7 +206,6 @@ if "username" in st.session_state and st.session_state["username"] == "james@shm
     else:
         st.sidebar.error("Invalid admin password.")
 
-# Main Content - Video and Quiz Management
 if "username" in st.session_state:
     st.title("Transcript-based Quiz Generator")
     st.markdown("Generate quizzes from transcripts in a CSV file hosted on GitHub.")
@@ -275,7 +277,6 @@ if "username" in st.session_state:
 
                             st.session_state[f'quiz_submitted_{index}_{idx}'] = True
 
-                    # Display the explanation only after submission
                     if st.session_state[f'quiz_submitted_{index}_{idx}']:
                         if question.get('explanation'):
                             st.info(f"Explanation: {question['explanation']}")
