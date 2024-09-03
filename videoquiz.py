@@ -124,7 +124,7 @@ def generate_quiz_questions_for_chunk(chunk: str) -> list:
     """
 
     try:
-        completions = openai.ChatCompletion.create(
+        completions = openai.chat.completions.create(
             model="gpt-4",
             messages=[{"role": "user", "content": prompt}]
         )
