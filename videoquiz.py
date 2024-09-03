@@ -187,44 +187,48 @@ if topic:
                     st.error(f"Failed to generate quiz for video {index + 1}.")
 
         # Display the generated quiz questions interactively
-        if st.session_state[f'quiz_questions_{index}']:
-            st.subheader(f"Quiz for Video {index + 1}")
+if st.session_state[f'quiz_questions_{index}']:
+    st.subheader(f"Quiz for Video {index + 1}")
 
-            for idx, question in enumerate(st.session_state[f'quiz_questions_{index}']):
-                st.write(f"**{question['question']}**")
+    for idx, question in enumerate(st.session_state[f'quiz_questions_{index}']):
+        st.write(f"**{question['question']}**")
 
-                # Display radio buttons for multiple-choice or True/False questions
-                if question["options"]:
-                    user_answer = st.radio(f"Your answer for {question['question'].split(':')[0]}:", question["options"], key=f"q_{index}_{idx}")
-                else:
-                    st.warning("No options available for this question. Skipping...")
+        # Display radio buttons for multiple-choice or True/False questions
+        if question["options"]:
+            user_answer = st.radio(f"Your answer for {question['question'].split(':')[0]}:", question["options"], key=f"q_{index}_{idx}")
+        else:
+            st.warning("No options available for this question. Skipping...")
+            continue
+
+        # Show the Submit Answer button for each question
+        if not st.session_state[f'quiz_submitted_{index}_{idx}']:
+            if st.button(f"Submit Answer for {question['question'].split(':')[0]} - Video {index + 1}", key=f"submit_{index}_{idx}"):
+                # Check if the answer is None and handle appropriately
+                if question["answer"] is None:
+                    st.warning("No correct answer available for this question. Skipping...")
                     continue
+                
+                # Normalize both answers for comparison
+                correct_answer_clean = question["answer"].strip().lower().replace(" ", "")
+                user_answer_clean = user_answer.strip().lower().replace(" ", "")
 
-                # Show the Submit Answer button for each question
-                if not st.session_state[f'quiz_submitted_{index}_{idx}']:
-                    if st.button(f"Submit Answer for {question['question'].split(':')[0]} - Video {index + 1}", key=f"submit_{index}_{idx}"):
-                        # Check if the answer is None and handle appropriately
-                        if question["answer"] is None:
-                            st.warning("No correct answer available for this question. Skipping...")
-                            continue
-                        
-                        # Normalize both answers for comparison
-                        correct_answer_clean = question["answer"].strip().lower().replace(" ", "")
-                        user_answer_clean = user_answer.strip().lower().replace(" ", "")
+                # Compare user answer with correct answer
+                if user_answer_clean == correct_answer_clean:
+                    st.success("Correct!")
+                    st.session_state[f'quiz_scores_{index}'] += 1  # Increment score for this video
+                else:
+                    st.error(f"Incorrect. The correct answer was: {question['answer']}")
 
-                        # Compare user answer with correct answer
-                        if user_answer_clean == correct_answer_clean:
-                            st.success("Correct!")
-                            st.session_state[f'quiz_scores_{index}'] += 1  # Increment score for this video
-                        else:
-                            st.error(f"Incorrect. The correct answer was: {question['answer']}")
+                # Mark the quiz as submitted
+                st.session_state[f'quiz_submitted_{index}_{idx}'] = True
 
-                        # Mark the quiz as submitted
-                        st.session_state[f'quiz_submitted_{index}_{idx}'] = True
+                # Show explanation after the answer is submitted
+                if question.get('explanation'):
+                    st.info(f"Explanation: {question['explanation']}")
 
-                        # Show explanation after the answer is submitted
-                        if question.get('explanation'):
-                            st.info(f"Explanation: {question['explanation']}")
+        # This part handles displaying the correct answer and explanation only after submission
+        if st.session_state[f'quiz_submitted_{index}_{idx}']:
+            st.info(f"Explanation: {question['explanation']}")
 
             st.write(f"Your score for Video {index + 1}: {st.session_state[f'quiz_scores_{index}']}/{len(st.session_state[f'quiz_questions_{index}'])}")
             
