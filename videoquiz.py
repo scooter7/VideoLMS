@@ -21,11 +21,16 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     All questions should be clearly formatted and avoid using characters like hyphens, asterisks, or unnecessary spaces.
     For multiple-choice questions, ensure there are exactly 4 answer choices.
     For true/false questions, phrase them as clear, declarative statements that can be evaluated as true or false.
-    Do not phrase true/false questions as questions; instead, they should be statements without any interrogative wording.
-    
+    Do not phrase true/false questions as questions or include any interrogative wording.
+
     Example of a valid true/false question:
     "True or False: Paris is the capital of France."
-    
+
+    Example of an invalid true/false question:
+    "True or False: What is the capital of France?"
+
+    If a question is not suitable as a true/false question, generate it as a multiple-choice question instead.
+
     Example of a valid multiple-choice question:
     Question: What is the capital of France?
     A) Paris
@@ -75,16 +80,25 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
                         if line.startswith("Explanation:"):
                             explanation = line.split("Explanation:")[1].strip()
 
-                    # Classify questions into true/false and multiple-choice
+                    # Validate true/false questions
                     if len(options) == 2 and all(opt in ["True", "False"] for opt in options):
                         # Check if the question is a proper statement for true/false evaluation
-                        if "?" not in question_text and question_text.lower().startswith("true or false:"):
+                        if "?" not in question_text and question_text.lower().startswith("true or false:") and not any(word in question_text.lower() for word in ["which", "what", "how", "when", "where", "who", "why"]):
                             true_false_questions.append({
                                 "question": question_text,
                                 "options": options,
                                 "answer": answer,
                                 "explanation": explanation
                             })
+                        else:
+                            # If not suitable, treat it as a multiple-choice question
+                            if len(options) == 4:
+                                multiple_choice_questions.append({
+                                    "question": question_text,
+                                    "options": options,
+                                    "answer": answer,
+                                    "explanation": explanation
+                                })
                     elif len(options) == 4:
                         multiple_choice_questions.append({
                             "question": question_text,
