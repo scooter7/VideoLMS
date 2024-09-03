@@ -15,9 +15,9 @@ def load_csv_from_github():
 # Function to generate quiz questions using GPT-4o-mini
 def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     prompt = f"""
-    You are an expert quiz generator. Based on the following transcript, create {num_questions} multiple-choice quiz questions.
+    You are an expert quiz generator. Based on the following transcript, create three multiple-choice quiz questions and two true/false questions.
     Each correct answer must be accurate, logically consistent, and clearly derived from the content of the transcript.
-    All questions should be multiple-choice with exactly 4 options.
+    All multiple choice questions should have exactly 4 options.
     
     Example of a valid multiple-choice question:
     Question: What is the capital of France?
@@ -28,7 +28,14 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     Answer: A) Paris
     Explanation: Paris is the capital of France.
 
-    Generate exactly {num_questions} questions.
+    Example of a valid true/false question:
+    Question: Paris is the capital of France.
+    A) True
+    B) False
+    Answer: A) PTrue
+    Explanation: Paris is the capital of France.
+
+    Generate exactly five questions.
 
     Transcript:
     {transcript}
