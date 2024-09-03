@@ -21,15 +21,12 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     All questions should be clearly formatted and avoid using characters like hyphens, asterisks, or unnecessary spaces.
     For multiple-choice questions, ensure there are exactly 4 answer choices.
     For true/false questions, phrase them as clear, declarative statements that can be evaluated as true or false.
-    Do not phrase true/false questions as questions or include any interrogative wording.
+    Do not phrase true/false questions as questions or include any interrogative wording, such as "What", "Which", "How", "When", "Where", "Who", or "Why".
 
     Example of a valid true/false question:
     "True or False: Paris is the capital of France."
 
-    Example of an invalid true/false question:
-    "True or False: What is the capital of France?"
-
-    If a question is not suitable as a true/false question, generate it as a multiple-choice question instead.
+    If a valid true/false question cannot be generated, generate multiple-choice questions instead to ensure a total of {num_questions} questions.
 
     Example of a valid multiple-choice question:
     Question: What is the capital of France?
@@ -40,7 +37,7 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     Answer: A) Paris
     Explanation: Paris is the capital of France.
 
-    Ensure there are exactly {num_questions} questions generated, including at least one true/false question.
+    Ensure there are exactly {num_questions} questions generated.
 
     Transcript:
     {transcript}
@@ -80,25 +77,16 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
                         if line.startswith("Explanation:"):
                             explanation = line.split("Explanation:")[1].strip()
 
-                    # Validate true/false questions
+                    # Validate and classify true/false questions
                     if len(options) == 2 and all(opt in ["True", "False"] for opt in options):
                         # Check if the question is a proper statement for true/false evaluation
-                        if "?" not in question_text and question_text.lower().startswith("true or false:") and not any(word in question_text.lower() for word in ["which", "what", "how", "when", "where", "who", "why"]):
+                        if "?" not in question_text and not any(word in question_text.lower() for word in ["what", "which", "how", "when", "where", "who", "why"]):
                             true_false_questions.append({
                                 "question": question_text,
                                 "options": options,
                                 "answer": answer,
                                 "explanation": explanation
                             })
-                        else:
-                            # If not suitable, treat it as a multiple-choice question
-                            if len(options) == 4:
-                                multiple_choice_questions.append({
-                                    "question": question_text,
-                                    "options": options,
-                                    "answer": answer,
-                                    "explanation": explanation
-                                })
                     elif len(options) == 4:
                         multiple_choice_questions.append({
                             "question": question_text,
@@ -107,23 +95,19 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
                             "explanation": explanation
                         })
 
-            # Ensure exactly 5 questions with at least one true/false question
-            while len(true_false_questions) < 1 and multiple_choice_questions:
-                # Convert a multiple-choice question to a true/false question if necessary
-                question = multiple_choice_questions.pop(0)
-                true_false_question = {
-                    "question": f"True or False: {question['question']}",
-                    "options": ["True", "False"],
-                    "answer": "True" if "True" in question["answer"] else "False",
-                    "explanation": question["explanation"]
-                }
-                true_false_questions.append(true_false_question)
-
-            # Combine true/false and multiple-choice questions, prioritizing true/false
-            parsed_questions = true_false_questions + multiple_choice_questions[:num_questions - len(true_false_questions)]
+            # If no valid true/false questions were generated, only use multiple-choice questions
+            if len(true_false_questions) == 0:
+                parsed_questions = multiple_choice_questions[:num_questions]
+            else:
+                # Combine true/false and multiple-choice questions, prioritizing true/false
+                parsed_questions = true_false_questions + multiple_choice_questions[:num_questions - len(true_false_questions)]
 
             # Ensure exactly 5 questions
             parsed_questions = parsed_questions[:num_questions]
+
+            # Remove duplicate "Question X" artifacts and fix numbering
+            for i, question in enumerate(parsed_questions, 1):
+                question["question"] = f"Question {i}: {question['question'].split(':')[-1].strip()}"
 
             if not parsed_questions or len(parsed_questions) < num_questions:
                 st.error("Failed to generate the required number of quiz questions. Please try again.")
@@ -193,11 +177,11 @@ if topic:
             st.subheader(f"Quiz for Video {index + 1}")
 
             for idx, question in enumerate(st.session_state[f'quiz_questions_{index}']):
-                st.write(f"**Question {idx + 1}:** {question['question']}")
+                st.write(f"**{question['question']}**")
 
                 # Display radio buttons for multiple-choice or True/False questions
                 if question["options"]:
-                    user_answer = st.radio(f"Your answer for Question {idx + 1}:", question["options"], key=f"q_{index}_{idx}")
+                    user_answer = st.radio(f"Your answer for {question['question'].split(':')[0]}:", question["options"], key=f"q_{index}_{idx}")
                 else:
                     st.warning("No options available for this question. Skipping...")
                     continue
@@ -207,7 +191,7 @@ if topic:
 
                 # Show the Submit Answer button for each question
                 if not st.session_state[f'quiz_submitted_{index}_{idx}']:
-                    if st.button(f"Submit Answer for Question {idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
+                    if st.button(f"Submit Answer for {question['question'].split(':')[0]} - Video {index + 1}", key=f"submit_{index}_{idx}"):
                         # Check if the answer is None and handle appropriately
                         if question["answer"] is None:
                             st.warning("No correct answer available for this question. Skipping...")
