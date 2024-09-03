@@ -110,7 +110,6 @@ def clean_answer(answer):
 def parse_questions_from_response(response_text):
     """Parse the OpenAI response to extract questions, options, answers, and explanations."""
     questions = []
-
     sections = response_text.split("\n\nTrue/False Questions:\n\n")
 
     if len(sections) == 2:
