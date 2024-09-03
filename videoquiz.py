@@ -21,6 +21,11 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     All questions should be clearly formatted and avoid using characters like hyphens, asterisks, or unnecessary spaces.
     For multiple-choice questions, ensure there are exactly 4 answer choices.
     For true/false questions, phrase them as clear statements that can be evaluated as true or false.
+    Do not phrase true/false questions as inquiries; instead, they should be statements.
+    
+    Example of a valid true/false question:
+    "True or False: Paris is the capital of France."
+    
     Provide the correct answer and a separate explanation, but do not include the explanation as part of the answer choices.
 
     Example question formatting:
@@ -75,7 +80,7 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
                     # Classify questions into true/false and multiple-choice
                     if len(options) == 2 and all(opt in ["True", "False"] for opt in options):
                         # Check if the question is a proper statement for true/false evaluation
-                        if "?" not in question_text:
+                        if "?" not in question_text and question_text.lower().startswith("true or false:"):
                             true_false_questions.append({
                                 "question": question_text,
                                 "options": options,
