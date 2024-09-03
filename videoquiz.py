@@ -4,6 +4,7 @@ import requests
 import json
 import base64
 import openai
+import re
 
 openai.api_key = st.secrets["openai"]["api_key"]
 
@@ -94,6 +95,13 @@ def chunk_text(text, max_chunk_size=3000):
         chunks.append(" ".join(current_chunk))
 
     return chunks
+
+def clean_answer(answer):
+    """
+    Cleans the answer string by removing any unwanted characters like hyphens, asterisks,
+    extra spaces, etc., and converts it to a consistent format for comparison.
+    """
+    return re.sub(r'[^a-zA-Z0-9]', '', answer).strip().lower()
 
 def parse_questions_from_response(response_text):
     questions = []
@@ -299,8 +307,8 @@ if "username" in st.session_state:
                                 st.warning("No correct answer available for this question. Skipping...")
                                 continue
 
-                            correct_answer_clean = question["answer"].strip().lower().replace(" ", "")
-                            user_answer_clean = user_answer.strip().lower().replace(" ", "")
+                            correct_answer_clean = clean_answer(question["answer"])
+                            user_answer_clean = clean_answer(user_answer)
 
                             if user_answer_clean == correct_answer_clean:
                                 st.success("Correct!")
