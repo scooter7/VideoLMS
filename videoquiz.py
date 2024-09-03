@@ -19,8 +19,9 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     Each question should be either a multiple-choice question (with 4 options) or a true/false question.
     Ensure that each correct answer is accurate, logically consistent, and clearly derived from the content of the transcript.
     All questions should be clearly formatted and avoid using characters like hyphens, asterisks, or unnecessary spaces.
-    Provide the explanation for the correct answer in a separate line after the answer.
-    Do not include the explanation in the main answer line.
+    For multiple-choice questions, ensure there are exactly 4 answer choices.
+    For true/false questions, use only "True" and "False" as the options.
+    Provide the correct answer and a separate explanation, but do not include the explanation as part of the answer choices.
 
     Example question formatting:
     Question: What is the capital of France?
@@ -52,7 +53,7 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
 
                 if len(lines) >= 2:
                     question_text = lines[0]
-                    options = [line for line in lines[1:] if line and not line.startswith("Answer:")]
+                    options = [line for line in lines[1:] if line and not line.startswith("Answer:") and not line.startswith("Explanation:")]
                     answer = None
                     explanation = None
 
@@ -65,6 +66,10 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
                             answer = line.split("Answer:")[1].strip()
                         if line.startswith("Explanation:"):
                             explanation = line.split("Explanation:")[1].strip()
+
+                    # Ensure True/False options are handled correctly
+                    if len(options) == 2 and all(opt in ["True", "False"] for opt in options):
+                        options = ["True", "False"]
 
                     parsed_questions.append({
                         "question": question_text,
