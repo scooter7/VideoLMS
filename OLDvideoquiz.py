@@ -101,6 +101,8 @@ if topic:
             with st.spinner("Generating quiz..."):
                 quiz_questions = generate_quiz_questions(transcript)
                 st.session_state[f'quiz_questions_{index}'] = quiz_questions
+                st.session_state[f'quiz_answers_{index}'] = [None] * len(quiz_questions)
+                st.session_state[f'quiz_scores_{index}'] = 0  # Initialize score for this quiz
                 if quiz_questions:
                     st.success(f"Quiz generated for video {index + 1}!")
                 else:
@@ -110,7 +112,9 @@ if topic:
         if f'quiz_questions_{index}' in st.session_state:
             st.subheader(f"Quiz for Video {index + 1}")
 
-            video_score = 0
+            # Make sure score is initialized
+            video_score = st.session_state.get(f'quiz_scores_{index}', 0)
+            
             for idx, question in enumerate(st.session_state[f'quiz_questions_{index}']):
                 st.write(f"**Question {idx + 1}:** {question['question']}")
 
@@ -120,6 +124,9 @@ if topic:
                 else:
                     st.warning("No options available for this question. Skipping...")
                     continue
+
+                # Store the user's answer
+                st.session_state[f'quiz_answers_{index}'][idx] = user_answer
 
                 if st.button(f"Submit Answer for Question {idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
                     # Check if the answer is None and handle appropriately
@@ -131,20 +138,23 @@ if topic:
                     correct_answer_clean = question["answer"].strip().lower().replace(" ", "")
                     user_answer_clean = user_answer.strip().lower().replace(" ", "")
 
-                    # Log comparison for debugging
-                    st.write(f"Debug: Correct answer: '{correct_answer_clean}', User answer: '{user_answer_clean}'")
+                    # Ensure no extra characters like hyphens are present
+                    user_answer_clean = user_answer_clean.lstrip('-')
 
                     # Compare user answer with correct answer
                     if user_answer_clean == correct_answer_clean:
                         st.success("Correct!")
-                        video_score += 1
+                        video_score += 1  # Increment score for this video
                     else:
                         st.error(f"Incorrect. The correct answer was: {question['answer']}")
+
+                # Update the score for this video in session state
+                st.session_state[f'quiz_scores_{index}'] = video_score
 
             st.write(f"Your score for Video {index + 1}: {video_score}/{len(st.session_state[f'quiz_questions_{index}'])}")
             
             # Update the total score and total questions count
-            total_score += video_score
+            total_score += st.session_state[f'quiz_scores_{index}']
             total_questions += len(st.session_state[f'quiz_questions_{index}'])
 
     # Display total score across all quizzes
