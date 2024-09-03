@@ -99,10 +99,16 @@ def chunk_text(text, max_chunk_size=3000):
     return chunks
 
 def clean_answer(answer):
-    answer = answer.replace("Answer:", "").strip()  # Remove 'Answer:' prefix if it exists
-    return re.sub(r'[^a-zA-Z0-9]', '', answer).strip().lower()
+    """Clean the answer to ensure it matches 'true', 'false', or one of the multiple choice options."""
+    answer = answer.replace("Answer:", "").strip().lower()  # Remove 'Answer:' prefix and convert to lowercase
+    if "true" in answer:
+        return "true"
+    elif "false" in answer:
+        return "false"
+    return re.sub(r'[^a-zA-Z0-9]', '', answer).strip()
 
 def parse_questions_from_response(response_text):
+    """Parse the OpenAI response to extract questions, options, answers, and explanations."""
     questions = []
 
     sections = response_text.split("\n\nTrue/False Questions:\n\n")
@@ -113,6 +119,7 @@ def parse_questions_from_response(response_text):
         mcq_section = sections[0]
         tf_section = ""
 
+    # Parsing multiple-choice questions
     mcq_parts = mcq_section.split("\n\n")
     for part in mcq_parts:
         lines = part.split("\n")
@@ -120,11 +127,12 @@ def parse_questions_from_response(response_text):
             question = {
                 "question": lines[0].strip(),
                 "options": [lines[1].strip(), lines[2].strip(), lines[3].strip(), lines[4].strip()],
-                "answer": lines[5].strip(),
+                "answer": clean_answer(lines[5].strip()),
                 "explanation": lines[6].strip()
             }
             questions.append(question)
 
+    # Parsing True/False questions
     tf_parts = tf_section.split("\n\n")
     for part in tf_parts:
         lines = part.split("\n")
@@ -132,17 +140,17 @@ def parse_questions_from_response(response_text):
             question = {
                 "question": lines[0].strip(),
                 "options": ["True", "False"],
-                "answer": lines[1].strip(),
+                "answer": clean_answer(lines[1].strip()),  # Ensure this is either "true" or "false"
                 "explanation": lines[2].strip()
             }
             questions.append(question)
 
+    # Limit to 5 questions if more are generated
     if len(questions) > 5:
         questions = questions[:5]
 
     return questions
 
-# The function you provided, integrated into the full code
 def generate_quiz_questions_for_chunk(chunk: str) -> list:
     prompt = f"""
     You are an expert quiz generator. Based on the following transcript, create three multiple-choice quiz questions and two true/false questions.
@@ -231,7 +239,9 @@ else:
     st.sidebar.write(f"Welcome, {st.session_state['username']}!")
     if st.sidebar.button("Logout"):
         del st.session_state["username"]
+        del st.session_state["is_admin"]
         st.sidebar.success("Logged out successfully!")
+        st.experimental_set_query_params()  # Reset the app's state
 
 if "is_admin" in st.session_state and st.session_state["is_admin"]:
     st.sidebar.title("Admin Page")
@@ -244,6 +254,12 @@ if "is_admin" in st.session_state and st.session_state["is_admin"]:
 
     st.write("### Quiz Scores")
     st.dataframe(scores)
+
+    if st.sidebar.button("Logout Admin"):
+        del st.session_state["username"]
+        del st.session_state["is_admin"]
+        st.sidebar.success("Logged out successfully!")
+        st.experimental_set_query_params()  # Reset the app's state
 
 if "username" in st.session_state:
     st.title("Transcript-based Quiz Generator")
@@ -315,10 +331,8 @@ if "username" in st.session_state:
                                 st.error(f"Incorrect. The correct answer was: {question['answer']}")
 
                             st.session_state[f'quiz_submitted_{index}_{idx}'] = True
-
-                    if st.session_state[f'quiz_submitted_{index}_{idx}']:
-                        if question.get('explanation'):
-                            st.info(f"Explanation: {question['explanation']}")
+                            if question.get('explanation'):
+                                st.info(f"Explanation: {question['explanation']}")
 
                 total_score += st.session_state[f'quiz_scores_{index}']
                 total_questions += len(st.session_state[f'quiz_questions_{index}'])
@@ -327,3 +341,8 @@ if "username" in st.session_state:
 
         if total_questions > 0:
             st.write(f"**Your total score across all videos: {total_score}/{total_questions}**")
+
+    st.write("### Your Watched Videos and Scores")
+    user_scores = load_scores()
+    user_scores = user_scores[user_scores['username'] == st.session_state['username']]
+    st.dataframe(user_scores)
