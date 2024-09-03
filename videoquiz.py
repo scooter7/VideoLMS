@@ -99,14 +99,16 @@ def chunk_text(text, max_chunk_size=3000):
     return chunks
 
 def clean_answer(answer):
+    """Clean the answer to ensure it matches 'true', 'false', or one of the multiple choice options."""
     answer = answer.replace("Answer:", "").strip().lower()  # Remove 'Answer:' prefix and convert to lowercase
     if "true" in answer:
         return "true"
     elif "false" in answer:
         return "false"
-    return re.sub(r'[^a-zA-Z]', '', answer).strip()
+    return re.sub(r'[^a-zA-Z0-9]', '', answer).strip()
 
 def parse_questions_from_response(response_text):
+    """Parse the OpenAI response to extract questions, options, answers, and explanations."""
     questions = []
 
     sections = response_text.split("\n\nTrue/False Questions:\n\n")
@@ -117,6 +119,7 @@ def parse_questions_from_response(response_text):
         mcq_section = sections[0]
         tf_section = ""
 
+    # Parsing multiple-choice questions
     mcq_parts = mcq_section.split("\n\n")
     for part in mcq_parts:
         lines = part.split("\n")
@@ -129,6 +132,7 @@ def parse_questions_from_response(response_text):
             }
             questions.append(question)
 
+    # Parsing True/False questions
     tf_parts = tf_section.split("\n\n")
     for part in tf_parts:
         lines = part.split("\n")
@@ -141,6 +145,7 @@ def parse_questions_from_response(response_text):
             }
             questions.append(question)
 
+    # Limit to 5 questions if more are generated
     if len(questions) > 5:
         questions = questions[:5]
 
@@ -302,34 +307,34 @@ if "username" in st.session_state:
                 st.subheader(f"Quiz for Video {index + 1}")
 
                 for idx, question in enumerate(st.session_state[f'quiz_questions_{index}']):
-                    st.write(f"**Question {total_questions + idx + 1}: {question['question'].split(':')[-1].strip()}**")
+    st.write(f"**Question {total_questions + idx + 1}: {question['question'].split(':')[-1].strip()}**")
 
-                    if question["options"]:
-                        user_answer = st.radio(f"Your answer for Question {total_questions + idx + 1}:", question["options"], key=f"q_{index}_{idx}")
-                    else:
-                        st.warning("No options available for this question. Skipping...")
-                        continue
+    if question["options"]:
+        user_answer = st.radio(f"Your answer for Question {total_questions + idx + 1}:", question["options"], key=f"q_{index}_{idx}")
+    else:
+        st.warning("No options available for this question. Skipping...")
+        continue
 
-                    if not st.session_state[f'quiz_submitted_{index}_{idx}']:
-                        if st.button(f"Submit Answer for Question {total_questions + idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
-                            if question["answer"] is None:
-                                st.warning("No correct answer available for this question. Skipping...")
-                                continue
+    if not st.session_state[f'quiz_submitted_{index}_{idx}']:
+        if st.button(f"Submit Answer for Question {total_questions + idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
+            if question["answer"] is None:
+                st.warning("No correct answer available for this question. Skipping...")
+                continue
 
-                            correct_answer_clean = clean_answer(question["answer"])
-                            user_answer_clean = clean_answer(user_answer)
+            correct_answer_clean = clean_answer(question["answer"])
+            user_answer_clean = clean_answer(user_answer)
 
-                            if user_answer_clean == correct_answer_clean:
-                                st.success("Correct!")
-                                st.session_state[f'quiz_scores_{index}'] += 1
-                            else:
-                                st.error(f"Incorrect. The correct answer was: {question['answer']}")
+            if user_answer_clean == correct_answer_clean:
+                st.success("Correct!")
+                st.session_state[f'quiz_scores_{index}'] += 1
+            else:
+                st.error(f"Incorrect. The correct answer was: {question['answer']}")
 
-                            st.session_state[f'quiz_submitted_{index}_{idx}'] = True
+            # Display the explanation, ensuring it aligns with the correct answer
+            st.session_state[f'quiz_submitted_{index}_{idx}'] = True
+            if question.get('explanation'):
+                st.info(f"Explanation: {question['explanation']}")
 
-                    if st.session_state[f'quiz_submitted_{index}_{idx}']:
-                        if question.get('explanation'):
-                            st.info(f"Explanation: {question['explanation']}")
 
                 total_score += st.session_state[f'quiz_scores_{index}']
                 total_questions += len(st.session_state[f'quiz_questions_{index}'])
