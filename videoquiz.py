@@ -231,7 +231,9 @@ else:
     st.sidebar.write(f"Welcome, {st.session_state['username']}!")
     if st.sidebar.button("Logout"):
         del st.session_state["username"]
+        del st.session_state["is_admin"]
         st.sidebar.success("Logged out successfully!")
+        st.experimental_rerun()
 
 if "is_admin" in st.session_state and st.session_state["is_admin"]:
     st.sidebar.title("Admin Page")
@@ -327,3 +329,8 @@ if "username" in st.session_state:
 
         if total_questions > 0:
             st.write(f"**Your total score across all videos: {total_score}/{total_questions}**")
+
+    st.write("### Your Watched Videos and Scores")
+    user_scores = load_scores()
+    user_scores = user_scores[user_scores['username'] == st.session_state['username']]
+    st.dataframe(user_scores)
