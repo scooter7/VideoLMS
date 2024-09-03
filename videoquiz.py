@@ -30,7 +30,6 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
             messages=[{"role": "user", "content": prompt}]
         )
 
-        # Extract the content from the completion response
         if completions.choices and completions.choices[0].message.content:
             completion_content = completions.choices[0].message.content.strip()
             questions = completion_content.split("\n\n")
@@ -53,7 +52,6 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
                             answer = options[-1].split("Answer:")[1].strip("*").strip()
                             options = options[:-1]
 
-                    # Adding a brief explanation to verify consistency
                     explanation = ""
                     if "Explanation:" in options[-1]:
                         explanation = options[-1].split("Explanation:")[1].strip()
@@ -136,7 +134,6 @@ if topic:
                 st.session_state[f'quiz_answers_{index}'][idx] = user_answer
 
                 if st.button(f"Submit Answer for Question {idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
-                    # Check if the answer is None and handle appropriately
                     if question["answer"] is None:
                         st.warning("No correct answer available for this question. Skipping...")
                         continue
