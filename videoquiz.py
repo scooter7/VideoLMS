@@ -3,7 +3,7 @@ import pandas as pd
 import requests
 import json
 import base64
-import openai  # Make sure to import the openai module before using it
+import openai
 
 # Set the OpenAI API key
 openai.api_key = st.secrets["openai"]["api_key"]
@@ -57,15 +57,15 @@ def save_user(username, password):
     users = load_users()
     new_user = pd.DataFrame({"username": [username], "password": [password]})
     users = pd.concat([users, new_user], ignore_index=True)
-    csv_content = users.to_csv(index=False)
-    upload_file_to_github(USER_DATA_FILE_PATH, csv_content, "Add new user")
+    content = users.to_csv(index=False)
+    upload_file_to_github(USER_DATA_FILE_PATH, content, "Add new user")
 
 def save_score(username, video_id, score):
     scores = load_scores()
     new_score = pd.DataFrame({"username": [username], "video_id": [video_id], "score": [score]})
     scores = pd.concat([scores, new_score], ignore_index=True)
-    csv_content = scores.to_csv(index=False)
-    upload_file_to_github(SCORES_DATA_FILE_PATH, csv_content, "Add new score")
+    content = scores.to_csv(index=False)
+    upload_file_to_github(SCORES_DATA_FILE_PATH, content, "Add new score")
 
 def authenticate(username, password):
     users = load_users()
@@ -118,77 +118,41 @@ def generate_quiz_questions_for_chunk(chunk: str) -> list:
     """
 
     try:
-        completions = openai.chat.completions.create(
-            model="gpt-4o-mini",
+        completions = openai.ChatCompletion.create(
+            model="gpt-4",
             messages=[{"role": "user", "content": prompt}]
         )
 
         if completions.choices and completions.choices[0].message.content:
-            completion_content = completions.choices[0].message.content.strip()
-            questions = completion_content.split("\n\n")
-
-            parsed_questions = []
-            for q in questions:
-                lines = [line.strip() for line in q.split("\n") if line.strip()]
-                if len(lines) >= 2:
-                    question_text = lines[0]
-                    options = [line for line in lines[1:] if line and not line.startswith("Answer:") and not line.startswith("Explanation:")]
-                    answer = None
-                    explanation = None
-
-                    options = [option.replace("-", "").replace("*", "").strip() for option in options]
-
-                    for line in lines:
-                        if line.startswith("Answer:"):
-                            answer = line.split("Answer:")[1].strip()
-                        if line.startswith("Explanation:"):
-                            explanation = line.split("Explanation:")[1].strip()
-
-                    if options and len(options) == 2:
-                        parsed_questions.append({
-                            "question": question_text,
-                            "options": options,
-                            "answer": answer,
-                            "explanation": explanation
-                        })
-                    elif len(options) == 4:
-                        parsed_questions.append({
-                            "question": question_text,
-                            "options": options,
-                            "answer": answer,
-                            "explanation": explanation
-                        })
-
-            return parsed_questions
-
-        else:
-            st.error("Failed to generate a valid response from the OpenAI API. The response might be incomplete or malformed.")
-            return []
-
+            response_text = completions.choices[0].message.content.strip()
+            questions = []
+            for q in response_text.split('\n\n'):
+                parts = q.split('\n')
+                if len(parts) >= 4:
+                    question = {
+                        "question": parts[0].strip(),
+                        "options": parts[1:5],
+                        "answer": parts[5].strip(),
+                        "explanation": parts[6].strip() if len(parts) > 6 else ""
+                    }
+                    questions.append(question)
+            return questions
     except Exception as e:
-        st.error(f"Failed to generate quiz questions: {e}")
-        return []
+        st.error(f"Error generating quiz questions: {e}")
+    return []
 
-def generate_combined_quiz_questions(transcript: str, num_questions: int = 5) -> list:
+def generate_combined_quiz_questions(transcript: str) -> list:
     chunks = chunk_text(transcript)
     all_questions = []
-
     for chunk in chunks:
-        chunk_questions = generate_quiz_questions_for_chunk(chunk)
-        all_questions.extend(chunk_questions)
+        questions = generate_quiz_questions_for_chunk(chunk)
+        all_questions.extend(questions)
+    return all_questions
 
-    if len(all_questions) < num_questions:
-        st.error("Failed to generate the required number of quiz questions. Please try again.")
-        return []
+# Streamlit app code
+st.title("Video Quiz Generator")
 
-    combined_questions = all_questions[:num_questions]
-
-    for i, question in enumerate(combined_questions, 1):
-        question["question"] = f"Question {i}: {question['question'].split(':')[-1].strip()}"
-
-    return combined_questions
-
-# User Authentication
+# Authentication and User Session Management
 if "username" not in st.session_state:
     st.sidebar.title("Login / Register")
 
@@ -239,12 +203,12 @@ if "username" in st.session_state and st.session_state["username"] == "james@shm
     else:
         st.sidebar.error("Invalid admin password.")
 
-# Main Content
+# Main Content - Video and Quiz Management
 if "username" in st.session_state:
     st.title("Transcript-based Quiz Generator")
     st.markdown("Generate quizzes from transcripts in a CSV file hosted on GitHub.")
 
-    df = load_csv_from_github()
+    df = pd.read_csv("https://raw.githubusercontent.com/scooter7/VideoLMS/main/Transcripts/YouTube%20Transcripts%20-%20Sheet1.csv")
 
     topic = st.selectbox("Select a Topic", df['Topic'].unique())
 
@@ -282,7 +246,7 @@ if "username" in st.session_state:
                     else:
                         st.error(f"Failed to generate quiz for video {index + 1}.")
 
-            if st.session_state.get(f'quiz_questions_{index}']):
+            if st.session_state.get(f'quiz_questions_{index}'):
                 st.subheader(f"Quiz for Video {index + 1}")
 
                 for idx, question in enumerate(st.session_state[f'quiz_questions_{index}']):
@@ -299,7 +263,7 @@ if "username" in st.session_state:
                             if question["answer"] is None:
                                 st.warning("No correct answer available for this question. Skipping...")
                                 continue
-                            
+
                             correct_answer_clean = question["answer"].strip().lower().replace(" ", "")
                             user_answer_clean = user_answer.strip().lower().replace(" ", "")
 
