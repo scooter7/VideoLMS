@@ -20,7 +20,7 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     Each correct answer must be accurate, logically consistent, and clearly derived from the content of the transcript.
     All questions should be clearly formatted and avoid using characters like hyphens, asterisks, or unnecessary spaces.
     For multiple-choice questions, ensure there are exactly 4 answer choices.
-    For true/false questions, use only "True" and "False" as the options.
+    For true/false questions, phrase them as clear statements that can be evaluated as true or false.
     Provide the correct answer and a separate explanation, but do not include the explanation as part of the answer choices.
 
     Example question formatting:
@@ -74,12 +74,14 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
 
                     # Classify questions into true/false and multiple-choice
                     if len(options) == 2 and all(opt in ["True", "False"] for opt in options):
-                        true_false_questions.append({
-                            "question": question_text,
-                            "options": options,
-                            "answer": answer,
-                            "explanation": explanation
-                        })
+                        # Check if the question is a proper statement for true/false evaluation
+                        if "?" not in question_text:
+                            true_false_questions.append({
+                                "question": question_text,
+                                "options": options,
+                                "answer": answer,
+                                "explanation": explanation
+                            })
                     elif len(options) == 4:
                         multiple_choice_questions.append({
                             "question": question_text,
@@ -89,17 +91,16 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
                         })
 
             # Ensure exactly 5 questions with at least one true/false question
-            while len(true_false_questions) < 1:
-                # If no true/false questions were generated, convert a multiple-choice question
-                if multiple_choice_questions:
-                    question = multiple_choice_questions.pop(0)
-                    true_false_question = {
-                        "question": question["question"],
-                        "options": ["True", "False"],
-                        "answer": "True" if "True" in question["answer"] else "False",
-                        "explanation": question["explanation"]
-                    }
-                    true_false_questions.append(true_false_question)
+            while len(true_false_questions) < 1 and multiple_choice_questions:
+                # Convert a multiple-choice question to a true/false question if necessary
+                question = multiple_choice_questions.pop(0)
+                true_false_question = {
+                    "question": f"True or False: {question['question']}",
+                    "options": ["True", "False"],
+                    "answer": "True" if "True" in question["answer"] else "False",
+                    "explanation": question["explanation"]
+                }
+                true_false_questions.append(true_false_question)
 
             # Combine true/false and multiple-choice questions, prioritizing true/false
             parsed_questions = true_false_questions + multiple_choice_questions[:num_questions - len(true_false_questions)]
