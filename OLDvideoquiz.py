@@ -17,7 +17,20 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     prompt = f"""
     You are an expert quiz generator. Based on the following transcript, create {num_questions} quiz questions.
     Each question should be either a multiple-choice question (with 4 options) or a true/false question.
-    Provide the correct answer for each question.
+    Ensure that each correct answer is accurate, logically consistent, and clearly derived from the content of the transcript.
+    All questions should be clearly formatted and avoid using characters like hyphens, asterisks, or unnecessary spaces.
+    For multiple-choice questions, ensure there are exactly 4 answer choices.
+    For true/false questions, use only "True" and "False" as the options.
+    Provide the correct answer and a separate explanation, but do not include the explanation as part of the answer choices.
+
+    Example question formatting:
+    Question: What is the capital of France?
+    A) Paris
+    B) London
+    C) Berlin
+    D) Madrid
+    Answer: A) Paris
+    Explanation: Paris is the capital of France.
 
     Transcript:
     {transcript}
@@ -36,27 +49,36 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
 
             parsed_questions = []
             for q in questions:
-                lines = q.split("\n")
-                if len(lines) >= 2:
-                    question_text = lines[0].strip()
-                    options = [line.strip() for line in lines[1:] if line.strip()]
+                lines = [line.strip() for line in q.split("\n") if line.strip()]
 
-                    # Handle True/False questions properly
+                if len(lines) >= 2:
+                    question_text = lines[0]
+                    options = [line for line in lines[1:] if line and not line.startswith("Answer:") and not line.startswith("Explanation:")]
+                    answer = None
+                    explanation = None
+
+                    # Clean and format options
+                    options = [option.replace("-", "").replace("*", "").strip() for option in options]
+
+                    # Extract answer and explanation
+                    for line in lines:
+                        if line.startswith("Answer:"):
+                            answer = line.split("Answer:")[1].strip()
+                        if line.startswith("Explanation:"):
+                            explanation = line.split("Explanation:")[1].strip()
+
+                    # Ensure True/False options are handled correctly
                     if len(options) == 1 and ("True" in options[0] or "False" in options[0]):
                         options = ["True", "False"]
-                        answer = "True" if "True" in options[0] else "False"
-                    else:
-                        # Extract the correct answer for multiple-choice questions
-                        answer = None
-                        if "Answer:" in options[-1]:
-                            answer = options[-1].split("Answer:")[1].strip("*").strip()
-                            options = options[:-1]
 
-                    parsed_questions.append({
-                        "question": question_text,
-                        "options": options,
-                        "answer": answer
-                    })
+                    # Skip any questions that don't have the correct number of options
+                    if len(options) == 2 and all(opt in ["True", "False"] for opt in options) or len(options) == 4:
+                        parsed_questions.append({
+                            "question": question_text,
+                            "options": options,
+                            "answer": answer,
+                            "explanation": explanation
+                        })
 
             if not parsed_questions:
                 st.error("No valid quiz questions could be generated. Please try again with a different video.")
@@ -96,6 +118,16 @@ if topic:
         # Display the embedded video
         st.video(video_url)
 
+        # Initialize session state variables if they don't exist
+        if f'quiz_submitted_{index}' not in st.session_state:
+            st.session_state[f'quiz_submitted_{index}'] = False
+        if f'quiz_scores_{index}' not in st.session_state:
+            st.session_state[f'quiz_scores_{index}'] = 0
+        if f'quiz_questions_{index}' not in st.session_state:
+            st.session_state[f'quiz_questions_{index}'] = []
+        if f'quiz_answers_{index}' not in st.session_state:
+            st.session_state[f'quiz_answers_{index}'] = []
+
         # "Watched Video" button to trigger quiz generation
         if st.button(f"I've watched this video {index + 1}"):
             with st.spinner("Generating quiz..."):
@@ -104,17 +136,17 @@ if topic:
                 st.session_state[f'quiz_answers_{index}'] = [None] * len(quiz_questions)
                 st.session_state[f'quiz_scores_{index}'] = 0  # Initialize score for this quiz
                 if quiz_questions:
+                    for idx, _ in enumerate(quiz_questions):
+                        # Initialize submission tracking for each question
+                        st.session_state[f'quiz_submitted_{index}_{idx}'] = False
                     st.success(f"Quiz generated for video {index + 1}!")
                 else:
                     st.error(f"Failed to generate quiz for video {index + 1}.")
 
         # Display the generated quiz questions interactively
-        if f'quiz_questions_{index}' in st.session_state:
+        if st.session_state[f'quiz_questions_{index}']:
             st.subheader(f"Quiz for Video {index + 1}")
 
-            # Make sure score is initialized
-            video_score = st.session_state.get(f'quiz_scores_{index}', 0)
-            
             for idx, question in enumerate(st.session_state[f'quiz_questions_{index}']):
                 st.write(f"**Question {idx + 1}:** {question['question']}")
 
@@ -128,30 +160,33 @@ if topic:
                 # Store the user's answer
                 st.session_state[f'quiz_answers_{index}'][idx] = user_answer
 
-                if st.button(f"Submit Answer for Question {idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
-                    # Check if the answer is None and handle appropriately
-                    if question["answer"] is None:
-                        st.warning("No correct answer available for this question. Skipping...")
-                        continue
-                    
-                    # Normalize both answers for comparison
-                    correct_answer_clean = question["answer"].strip().lower().replace(" ", "")
-                    user_answer_clean = user_answer.strip().lower().replace(" ", "")
+                # Show the Submit Answer button for each question
+                if not st.session_state[f'quiz_submitted_{index}_{idx}']:
+                    if st.button(f"Submit Answer for Question {idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
+                        # Check if the answer is None and handle appropriately
+                        if question["answer"] is None:
+                            st.warning("No correct answer available for this question. Skipping...")
+                            continue
+                        
+                        # Normalize both answers for comparison
+                        correct_answer_clean = question["answer"].strip().lower().replace(" ", "")
+                        user_answer_clean = user_answer.strip().lower().replace(" ", "")
 
-                    # Ensure no extra characters like hyphens are present
-                    user_answer_clean = user_answer_clean.lstrip('-')
+                        # Compare user answer with correct answer
+                        if user_answer_clean == correct_answer_clean:
+                            st.success("Correct!")
+                            st.session_state[f'quiz_scores_{index}'] += 1  # Increment score for this video
+                        else:
+                            st.error(f"Incorrect. The correct answer was: {question['answer']}")
 
-                    # Compare user answer with correct answer
-                    if user_answer_clean == correct_answer_clean:
-                        st.success("Correct!")
-                        video_score += 1  # Increment score for this video
-                    else:
-                        st.error(f"Incorrect. The correct answer was: {question['answer']}")
+                        # Mark the quiz as submitted
+                        st.session_state[f'quiz_submitted_{index}_{idx}'] = True
 
-                # Update the score for this video in session state
-                st.session_state[f'quiz_scores_{index}'] = video_score
+                        # Show explanation after the answer is submitted
+                        if question.get('explanation'):
+                            st.info(f"Explanation: {question['explanation']}")
 
-            st.write(f"Your score for Video {index + 1}: {video_score}/{len(st.session_state[f'quiz_questions_{index}'])}")
+            st.write(f"Your score for Video {index + 1}: {st.session_state[f'quiz_scores_{index}']}/{len(st.session_state[f'quiz_questions_{index}'])}")
             
             # Update the total score and total questions count
             total_score += st.session_state[f'quiz_scores_{index}']
