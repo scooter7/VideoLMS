@@ -119,7 +119,7 @@ def parse_questions_from_response(response_text):
         if len(lines) >= 7:  # Ensure there are enough lines for a question, 4 options, answer, and explanation
             question = {
                 "question": lines[0].strip(),
-                "options": [lines[1].strip(), lines[2].strip(), lines[3.strip(), lines[4].strip()],
+                "options": [lines[1].strip(), lines[2].strip(), lines[3].strip(), lines[4].strip()],
                 "answer": lines[5].strip(),
                 "explanation": lines[6].strip()
             }
@@ -289,7 +289,7 @@ if "username" in st.session_state:
                     else:
                         st.error(f"Failed to generate quiz for video {index + 1}.")
 
-            if st.session_state.get(f'quiz_questions_{index}'):
+            if st.session_state.get(f'quiz_questions_{index}']):
                 st.subheader(f"Quiz for Video {index + 1}")
 
                 for idx, question in enumerate(st.session_state[f'quiz_questions_{index}']):
