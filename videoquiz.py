@@ -20,15 +20,13 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     Each correct answer must be accurate, logically consistent, and clearly derived from the content of the transcript.
     All questions should be clearly formatted and avoid using characters like hyphens, asterisks, or unnecessary spaces.
     For multiple-choice questions, ensure there are exactly 4 answer choices.
-    For true/false questions, phrase them as clear statements that can be evaluated as true or false.
-    Do not phrase true/false questions as inquiries; instead, they should be statements.
+    For true/false questions, phrase them as clear, declarative statements that can be evaluated as true or false.
+    Do not phrase true/false questions as questions; instead, they should be statements without any interrogative wording.
     
     Example of a valid true/false question:
     "True or False: Paris is the capital of France."
     
-    Provide the correct answer and a separate explanation, but do not include the explanation as part of the answer choices.
-
-    Example question formatting:
+    Example of a valid multiple-choice question:
     Question: What is the capital of France?
     A) Paris
     B) London
