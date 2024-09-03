@@ -142,11 +142,15 @@ def parse_questions_from_response(response_text):
             }
             questions.append(question)
 
+    # Limit to 5 questions: 3 MCQs + 2 True/False
+    if len(questions) > 5:
+        questions = questions[:5]
+
     return questions
 
 def generate_quiz_questions_for_chunk(chunk: str) -> list:
     prompt = f"""
-    You are an expert quiz generator. Based on the following transcript, create three multiple-choice quiz questions and two true/false questions.
+    You are an expert quiz generator. Based on the following transcript, create exactly three multiple-choice quiz questions and two true/false questions.
     Each correct answer must be accurate, logically consistent, and clearly derived from the content of the transcript.
     All multiple choice questions should have exactly 4 options and all true/false questions should only have two options (true and false).
 
@@ -195,7 +199,9 @@ def generate_combined_quiz_questions(transcript: str) -> list:
     for chunk in chunks:
         questions = generate_quiz_questions_for_chunk(chunk)
         all_questions.extend(questions)
-    return all_questions
+        if len(all_questions) >= 5:
+            break  # Stop once we have 5 questions total
+    return all_questions[:5]  # Ensure only 5 questions are returned
 
 st.title("Video Quiz Generator")
 
@@ -290,7 +296,7 @@ if "username" in st.session_state:
                     else:
                         st.error(f"Failed to generate quiz for video {index + 1}.")
 
-            if st.session_state.get(f'quiz_questions_{index}'):
+            if st.session_state.get(f'quiz_questions_{index}']):
                 st.subheader(f"Quiz for Video {index + 1}")
 
                 for idx, question in enumerate(st.session_state[f'quiz_questions_{index}']):
