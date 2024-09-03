@@ -19,7 +19,7 @@ def get_file_sha(file_path):
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
-        return response.json()["sha"]
+        return response.json().get("sha", None)
     return None
 
 def upload_file_to_github(file_path, content, message):
@@ -38,7 +38,7 @@ def upload_file_to_github(file_path, content, message):
         data["sha"] = sha
 
     response = requests.put(url, headers=headers, data=json.dumps(data))
-    if response.status_code == 200:
+    if response.status_code in [200, 201]:
         st.success(f"Successfully updated {file_path} in the GitHub repository.")
     else:
         st.error(f"Failed to update {file_path} in the GitHub repository: {response.text}")
@@ -248,7 +248,7 @@ if "username" in st.session_state:
                     else:
                         st.error(f"Failed to generate quiz for video {index + 1}.")
 
-            if st.session_state.get(f'quiz_questions_{index}'):
+            if st.session_state.get(f'quiz_questions_{index}']):
                 st.subheader(f"Quiz for Video {index + 1}")
 
                 for idx, question in enumerate(st.session_state[f'quiz_questions_{index}']):
