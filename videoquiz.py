@@ -100,7 +100,7 @@ def chunk_text(text, max_chunk_size=3000):
 
 def clean_answer(answer):
     answer = answer.replace("Answer:", "").strip()  # Remove 'Answer:' prefix if it exists
-    return re.sub(r'[^a-zA-Z0-9]', '', answer).strip().lower()
+    return re.sub(r'[^a-zA-Z]', '', answer).strip().lower()
 
 def parse_questions_from_response(response_text):
     questions = []
@@ -120,7 +120,7 @@ def parse_questions_from_response(response_text):
             question = {
                 "question": lines[0].strip(),
                 "options": [lines[1].strip(), lines[2].strip(), lines[3].strip(), lines[4].strip()],
-                "answer": lines[5].strip(),
+                "answer": clean_answer(lines[5].strip()),
                 "explanation": lines[6].strip()
             }
             questions.append(question)
@@ -132,7 +132,7 @@ def parse_questions_from_response(response_text):
             question = {
                 "question": lines[0].strip(),
                 "options": ["True", "False"],
-                "answer": lines[1].strip(),
+                "answer": clean_answer(lines[1].strip()),  # Ensure this is either "True" or "False"
                 "explanation": lines[2].strip()
             }
             questions.append(question)
@@ -142,7 +142,6 @@ def parse_questions_from_response(response_text):
 
     return questions
 
-# The function you provided, integrated into the full code
 def generate_quiz_questions_for_chunk(chunk: str) -> list:
     prompt = f"""
     You are an expert quiz generator. Based on the following transcript, create three multiple-choice quiz questions and two true/false questions.
