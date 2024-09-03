@@ -131,6 +131,11 @@ def generate_quiz_questions_for_chunk(chunk: str) -> list:
 
         if completions.choices and completions.choices[0].message.content:
             response_text = completions.choices[0].message.content.strip()
+
+            # Debug: Display the raw response text
+            st.write("### Raw Response from API")
+            st.write(response_text)
+
             questions = []
             for q in response_text.split('\n\n'):
                 parts = q.split('\n')
