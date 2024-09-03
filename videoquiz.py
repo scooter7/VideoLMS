@@ -126,36 +126,34 @@ if topic:
                     st.warning("No options available for this question. Skipping...")
                     continue
 
-                # Store the user's answer
-                st.session_state[f'quiz_answers_{index}'][idx] = user_answer
+                # Only show the submission button if the user hasn't submitted this question yet
+                if not st.session_state[f'quiz_submitted_{index}'][idx]:
+                    if st.button(f"Submit Answer for Question {idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
+                        st.session_state[f'quiz_submitted_{index}'][idx] = True
+                        if question["answer"] is None:
+                            st.warning("No correct answer available for this question. Skipping...")
+                            continue
 
-                # Only show correct answer and explanation after submission
-                if st.button(f"Submit Answer for Question {idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
-                    st.session_state[f'quiz_submitted_{index}'][idx] = True
-                    if question["answer"] is None:
-                        st.warning("No correct answer available for this question. Skipping...")
-                        continue
-                    
-                    # Normalize both answers for comparison
-                    correct_answer_clean = question["answer"].strip().lower().replace(" ", "")
-                    user_answer_clean = user_answer.strip().lower().replace(" ", "")
+                        # Normalize both answers for comparison
+                        correct_answer_clean = question["answer"].strip().lower().replace(" ", "")
+                        user_answer_clean = user_answer.strip().lower().replace(" ", "")
 
-                    # Ensure no extra characters like hyphens are present
-                    user_answer_clean = user_answer_clean.lstrip('-')
+                        # Ensure no extra characters like hyphens are present
+                        user_answer_clean = user_answer_clean.lstrip('-')
 
-                    # Compare user answer with correct answer
-                    if user_answer_clean == correct_answer_clean:
-                        st.success("Correct!")
-                        video_score += 1  # Increment score for this video
-                    else:
-                        st.error(f"Incorrect. The correct answer was: {question['answer']}")
+                        # Compare user answer with correct answer
+                        if user_answer_clean == correct_answer_clean:
+                            st.success("Correct!")
+                            video_score += 1  # Increment score for this video
+                        else:
+                            st.error(f"Incorrect. The correct answer was: {question['answer']}")
 
-                    # Show the explanation only after the user submits an answer
-                    if question["explanation"]:
-                        st.info(f"Explanation: {question['explanation']}")
+                        # Show the explanation only after the user submits an answer
+                        if question["explanation"]:
+                            st.info(f"Explanation: {question['explanation']}")
 
-                # Update the score for this video in session state
-                st.session_state[f'quiz_scores_{index}'] = video_score
+                        # Update the score for this video in session state
+                        st.session_state[f'quiz_scores_{index}'] = video_score
 
             st.write(f"Your score for Video {index + 1}: {video_score}/{len(st.session_state[f'quiz_questions_{index}'])}")
             
