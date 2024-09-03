@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import openai
-from pathlib import Path
 
 openai.api_key = st.secrets["openai"]["api_key"]
 
@@ -29,12 +28,14 @@ def load_scores():
 
 def save_user(username, password):
     users = load_users()
-    users = users.append({"username": username, "password": password}, ignore_index=True)
+    new_user = pd.DataFrame({"username": [username], "password": [password]})
+    users = pd.concat([users, new_user], ignore_index=True)
     users.to_csv(USER_DATA_FILE, index=False)
 
 def save_score(username, video_id, score):
     scores = load_scores()
-    scores = scores.append({"username": username, "video_id": video_id, "score": score}, ignore_index=True)
+    new_score = pd.DataFrame({"username": [username], "video_id": [video_id], "score": [score]})
+    scores = pd.concat([scores, new_score], ignore_index=True)
     scores.to_csv(SCORES_DATA_FILE, index=False)
 
 def authenticate(username, password):
