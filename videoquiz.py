@@ -142,11 +142,28 @@ def parse_questions_from_response(response_text):
 
     return questions
 
+# The function you provided, integrated into the full code
 def generate_quiz_questions_for_chunk(chunk: str) -> list:
     prompt = f"""
-    You are an expert quiz generator. Based on the following transcript, create exactly three multiple-choice quiz questions and two true/false questions.
+    You are an expert quiz generator. Based on the following transcript, create three multiple-choice quiz questions and two true/false questions.
     Each correct answer must be accurate, logically consistent, and clearly derived from the content of the transcript.
     All multiple choice questions should have exactly 4 options and all true/false questions should only have two options (true and false).
+    
+    Example of a valid multiple-choice question:
+    Question: What is the capital of France?
+    A) Paris
+    B) London
+    C) Berlin
+    D) Madrid
+    Answer: A) Paris
+    Explanation: Paris is the capital of France.
+
+    Example of a valid true/false question:
+    Question: Paris is the capital of France.
+    A) True
+    B) False
+    Answer: A) True
+    Explanation: Paris is the capital of France.
 
     Generate exactly five questions.
 
@@ -194,6 +211,7 @@ if "username" not in st.session_state:
         if st.sidebar.button("Login"):
             if authenticate(username, password):
                 st.session_state["username"] = username
+                st.session_state["is_admin"] = (username == "james@shmooze.io" and password == "Conversations7!")
                 st.sidebar.success("Logged in successfully!")
             else:
                 st.sidebar.error("Invalid credentials. Please try again.")
@@ -215,21 +233,17 @@ else:
         del st.session_state["username"]
         st.sidebar.success("Logged out successfully!")
 
-if "username" in st.session_state and st.session_state["username"] == "james@shmooze.io":
+if "is_admin" in st.session_state and st.session_state["is_admin"]:
     st.sidebar.title("Admin Page")
-    admin_password = st.sidebar.text_input("Admin Password", type="password")
-    if admin_password == "Conversations7!":
-        st.sidebar.success("Admin access granted!")
-        users = load_users()
-        scores = load_scores()
+    st.sidebar.success("Admin access granted!")
+    users = load_users()
+    scores = load_scores()
 
-        st.write("### All Users")
-        st.dataframe(users)
+    st.write("### All Users")
+    st.dataframe(users)
 
-        st.write("### Quiz Scores")
-        st.dataframe(scores)
-    else:
-        st.sidebar.error("Invalid admin password.")
+    st.write("### Quiz Scores")
+    st.dataframe(scores)
 
 if "username" in st.session_state:
     st.title("Transcript-based Quiz Generator")
