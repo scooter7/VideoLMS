@@ -12,8 +12,26 @@ def load_csv_from_github():
     df = pd.read_csv(url)
     return df
 
-# Function to generate quiz questions using GPT-4o-mini
-def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
+def chunk_text(text, max_chunk_size=3000):
+    """Splits the text into chunks of a specified maximum size."""
+    words = text.split()
+    chunks = []
+    current_chunk = []
+
+    for word in words:
+        if len(" ".join(current_chunk + [word])) <= max_chunk_size:
+            current_chunk.append(word)
+        else:
+            chunks.append(" ".join(current_chunk))
+            current_chunk = [word]
+
+    # Add the last chunk if any words remain
+    if current_chunk:
+        chunks.append(" ".join(current_chunk))
+
+    return chunks
+
+def generate_quiz_questions_for_chunk(chunk: str) -> list:
     prompt = f"""
     You are an expert quiz generator. Based on the following transcript, create three multiple-choice quiz questions and two true/false questions.
     Each correct answer must be accurate, logically consistent, and clearly derived from the content of the transcript.
@@ -32,13 +50,13 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     Question: Paris is the capital of France.
     A) True
     B) False
-    Answer: A) PTrue
+    Answer: A) True
     Explanation: Paris is the capital of France.
 
     Generate exactly five questions.
 
     Transcript:
-    {transcript}
+    {chunk}
     """
 
     try:
@@ -78,15 +96,6 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
                             "explanation": explanation
                         })
 
-            # Ensure we have exactly 5 questions
-            if len(parsed_questions) < num_questions:
-                st.error("Failed to generate the required number of quiz questions. Please try again.")
-                return []
-
-            # Properly number the questions sequentially
-            for i, question in enumerate(parsed_questions, 1):
-                question["question"] = f"Question {i}: {question['question'].split(':')[-1].strip()}"
-
             return parsed_questions
 
         else:
@@ -96,6 +105,28 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     except Exception as e:
         st.error(f"Failed to generate quiz questions: {e}")
         return []
+
+def generate_combined_quiz_questions(transcript: str, num_questions: int = 5) -> list:
+    chunks = chunk_text(transcript)
+    all_questions = []
+
+    for chunk in chunks:
+        chunk_questions = generate_quiz_questions_for_chunk(chunk)
+        all_questions.extend(chunk_questions)
+
+    # Ensure we have the desired number of questions
+    if len(all_questions) < num_questions:
+        st.error("Failed to generate the required number of quiz questions. Please try again.")
+        return []
+
+    # Limit the total number of questions to the specified number
+    combined_questions = all_questions[:num_questions]
+
+    # Properly number the questions sequentially
+    for i, question in enumerate(combined_questions, 1):
+        question["question"] = f"Question {i}: {question['question'].split(':')[-1].strip()}"
+
+    return combined_questions
 
 # Streamlit App
 st.title("Transcript-based Quiz Generator")
@@ -136,7 +167,7 @@ if topic:
         # "Watched Video" button to trigger quiz generation
         if st.button(f"I've watched this video {index + 1}"):
             with st.spinner("Generating quiz..."):
-                quiz_questions = generate_quiz_questions(transcript)
+                quiz_questions = generate_combined_quiz_questions(transcript)
                 st.session_state[f'quiz_questions_{index}'] = quiz_questions
                 st.session_state[f'quiz_answers_{index}'] = [None] * len(quiz_questions)
                 st.session_state[f'quiz_scores_{index}'] = 0  # Initialize score for this quiz
