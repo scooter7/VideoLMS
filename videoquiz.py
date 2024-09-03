@@ -16,8 +16,8 @@ def load_csv_from_github():
 def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     prompt = f"""
     You are an expert quiz generator. Based on the following transcript, create {num_questions} quiz questions.
-    Each question should be either a multiple-choice question (with 4 options) or a true/false question.
-    Ensure that each correct answer is accurate, logically consistent, and clearly derived from the content of the transcript.
+    Ensure that there is a mix of multiple-choice (with exactly 4 options) and true/false questions.
+    Each correct answer must be accurate, logically consistent, and clearly derived from the content of the transcript.
     All questions should be clearly formatted and avoid using characters like hyphens, asterisks, or unnecessary spaces.
     For multiple-choice questions, ensure there are exactly 4 answer choices.
     For true/false questions, use only "True" and "False" as the options.
@@ -31,6 +31,8 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     D) Madrid
     Answer: A) Paris
     Explanation: Paris is the capital of France.
+
+    Ensure there are exactly {num_questions} questions generated.
 
     Transcript:
     {transcript}
@@ -79,6 +81,10 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
                             "answer": answer,
                             "explanation": explanation
                         })
+
+            # Ensure exactly 5 questions are returned
+            if len(parsed_questions) > num_questions:
+                parsed_questions = parsed_questions[:num_questions]
 
             if not parsed_questions:
                 st.error("No valid quiz questions could be generated. Please try again with a different video.")
