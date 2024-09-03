@@ -39,22 +39,17 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
                 lines = q.split("\n")
                 if len(lines) >= 2:
                     question_text = lines[0].strip()
-                    options = [line.strip() for line in lines[1:] if line.strip()]
+                    options = [line.strip() for line in lines[1:] if line.strip() and not line.startswith("Answer:") and not line.startswith("Explanation:")]
 
-                    # Handle True/False questions properly
-                    if len(options) == 1 and ("True" in options[0] or "False" in options[0]):
-                        options = ["True", "False"]
-                        answer = "True" if "True" in options[0] else "False"
-                    else:
-                        # Extract the correct answer for multiple-choice questions
-                        answer = None
-                        if "Answer:" in options[-1]:
-                            answer = options[-1].split("Answer:")[1].strip("*").strip()
-                            options = options[:-1]
-
+                    answer = None
                     explanation = ""
-                    if "Explanation:" in options[-1]:
-                        explanation = options[-1].split("Explanation:")[1].strip()
+
+                    # Extract the correct answer and explanation
+                    for line in lines:
+                        if "Answer:" in line:
+                            answer = line.split("Answer:")[1].strip("*").strip()
+                        if "Explanation:" in line:
+                            explanation = line.split("Explanation:")[1].strip()
 
                     parsed_questions.append({
                         "question": question_text,
