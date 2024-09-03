@@ -15,7 +15,7 @@ def load_csv_from_github():
 # Function to generate quiz questions using GPT-4o-mini
 def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     prompt = f"""
-    You are an expert quiz generator. Based on the following transcript, create {num_questions} quiz questions.
+    You are an expert quiz generator. Based on the following transcript, create {num_questions} multiple-choice quiz questions.
     Each correct answer must be accurate, logically consistent, and clearly derived from the content of the transcript.
     All questions should be multiple-choice with exactly 4 options.
     
@@ -28,10 +28,7 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     Answer: A) Paris
     Explanation: Paris is the capital of France.
 
-    If possible, convert one multiple-choice question into a true/false question, phrasing it as a clear, declarative statement that can be evaluated as true or false.
-    
-    Example of a valid true/false question:
-    "True or False: Paris is the capital of France."
+    Generate exactly {num_questions} questions.
 
     Transcript:
     {transcript}
@@ -78,17 +75,6 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
             if len(parsed_questions) < num_questions:
                 st.error("Failed to generate the required number of quiz questions. Please try again.")
                 return []
-
-            # Attempt to convert the first question to a true/false if applicable
-            if parsed_questions and len(parsed_questions[0]["options"]) == 4:
-                first_question = parsed_questions.pop(0)
-                true_false_question = {
-                    "question": f"True or False: {first_question['question']}",
-                    "options": ["True", "False"],
-                    "answer": "True" if first_question["answer"] in ["True", "A"] else "False",
-                    "explanation": first_question["explanation"]
-                }
-                parsed_questions.insert(0, true_false_question)
 
             # Properly number the questions sequentially
             for i, question in enumerate(parsed_questions, 1):
