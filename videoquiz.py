@@ -307,34 +307,32 @@ if "username" in st.session_state:
                 st.subheader(f"Quiz for Video {index + 1}")
 
                 for idx, question in enumerate(st.session_state[f'quiz_questions_{index}']):
-    st.write(f"**Question {total_questions + idx + 1}: {question['question'].split(':')[-1].strip()}**")
+                    st.write(f"**Question {total_questions + idx + 1}: {question['question'].split(':')[-1].strip()}**")
 
-    if question["options"]:
-        user_answer = st.radio(f"Your answer for Question {total_questions + idx + 1}:", question["options"], key=f"q_{index}_{idx}")
-    else:
-        st.warning("No options available for this question. Skipping...")
-        continue
+                    if question["options"]:
+                        user_answer = st.radio(f"Your answer for Question {total_questions + idx + 1}:", question["options"], key=f"q_{index}_{idx}")
+                    else:
+                        st.warning("No options available for this question. Skipping...")
+                        continue
 
-    if not st.session_state[f'quiz_submitted_{index}_{idx}']:
-        if st.button(f"Submit Answer for Question {total_questions + idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
-            if question["answer"] is None:
-                st.warning("No correct answer available for this question. Skipping...")
-                continue
+                    if not st.session_state[f'quiz_submitted_{index}_{idx}']:
+                        if st.button(f"Submit Answer for Question {total_questions + idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
+                            if question["answer"] is None:
+                                st.warning("No correct answer available for this question. Skipping...")
+                                continue
 
-            correct_answer_clean = clean_answer(question["answer"])
-            user_answer_clean = clean_answer(user_answer)
+                            correct_answer_clean = clean_answer(question["answer"])
+                            user_answer_clean = clean_answer(user_answer)
 
-            if user_answer_clean == correct_answer_clean:
-                st.success("Correct!")
-                st.session_state[f'quiz_scores_{index}'] += 1
-            else:
-                st.error(f"Incorrect. The correct answer was: {question['answer']}")
+                            if user_answer_clean == correct_answer_clean:
+                                st.success("Correct!")
+                                st.session_state[f'quiz_scores_{index}'] += 1
+                            else:
+                                st.error(f"Incorrect. The correct answer was: {question['answer']}")
 
-            # Display the explanation, ensuring it aligns with the correct answer
-            st.session_state[f'quiz_submitted_{index}_{idx}'] = True
-            if question.get('explanation'):
-                st.info(f"Explanation: {question['explanation']}")
-
+                            st.session_state[f'quiz_submitted_{index}_{idx}'] = True
+                            if question.get('explanation'):
+                                st.info(f"Explanation: {question['explanation']}")
 
                 total_score += st.session_state[f'quiz_scores_{index}']
                 total_questions += len(st.session_state[f'quiz_questions_{index}'])
