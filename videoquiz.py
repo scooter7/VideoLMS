@@ -104,6 +104,7 @@ if topic:
                 st.session_state[f'quiz_questions_{index}'] = quiz_questions
                 st.session_state[f'quiz_answers_{index}'] = [None] * len(quiz_questions)
                 st.session_state[f'quiz_scores_{index}'] = 0  # Initialize score for this quiz
+                st.session_state[f'quiz_submitted_{index}'] = False  # Track if the quiz was submitted
                 if quiz_questions:
                     st.success(f"Quiz generated for video {index + 1}!")
                 else:
@@ -129,28 +130,36 @@ if topic:
                 # Store the user's answer
                 st.session_state[f'quiz_answers_{index}'][idx] = user_answer
 
-                if st.button(f"Submit Answer for Question {idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
-                    # Check if the answer is None and handle appropriately
-                    if question["answer"] is None:
-                        st.warning("No correct answer available for this question. Skipping...")
-                        continue
-                    
-                    # Normalize both answers for comparison
-                    correct_answer_clean = question["answer"].strip().lower().replace(" ", "")
-                    user_answer_clean = user_answer.strip().lower().replace(" ", "")
+                # Show the Submit Answer button if the quiz hasn't been submitted yet
+                if not st.session_state[f'quiz_submitted_{index}']:
+                    if st.button(f"Submit Answer for Question {idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
+                        # Check if the answer is None and handle appropriately
+                        if question["answer"] is None:
+                            st.warning("No correct answer available for this question. Skipping...")
+                            continue
+                        
+                        # Normalize both answers for comparison
+                        correct_answer_clean = question["answer"].strip().lower().replace(" ", "")
+                        user_answer_clean = user_answer.strip().lower().replace(" ", "")
 
-                    # Ensure no extra characters like hyphens are present
-                    user_answer_clean = user_answer_clean.lstrip('-')
+                        # Ensure no extra characters like hyphens are present
+                        user_answer_clean = user_answer_clean.lstrip('-')
 
-                    # Compare user answer with correct answer
-                    if user_answer_clean == correct_answer_clean:
-                        st.success("Correct!")
-                        video_score += 1  # Increment score for this video
-                    else:
-                        st.error(f"Incorrect. The correct answer was: {question['answer']}")
+                        # Compare user answer with correct answer
+                        if user_answer_clean == correct_answer_clean:
+                            st.success("Correct!")
+                            video_score += 1  # Increment score for this video
+                        else:
+                            st.error(f"Incorrect. The correct answer was: {question['answer']}")
 
-                # Update the score for this video in session state
-                st.session_state[f'quiz_scores_{index}'] = video_score
+                        # Update the score for this video in session state
+                        st.session_state[f'quiz_scores_{index}'] = video_score
+
+                        # Mark the quiz as submitted
+                        st.session_state[f'quiz_submitted_{index}'] = True
+
+                        # Show explanation after the answer is submitted
+                        st.info(f"Explanation: {question.get('explanation', 'No explanation provided.')}")
 
             st.write(f"Your score for Video {index + 1}: {video_score}/{len(st.session_state[f'quiz_questions_{index}'])}")
             
