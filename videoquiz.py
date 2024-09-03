@@ -95,6 +95,46 @@ def chunk_text(text, max_chunk_size=3000):
 
     return chunks
 
+def parse_questions_from_response(response_text):
+    questions = []
+
+    # Split response into sections based on the header indicators (e.g., "Multiple Choice Questions:", "True/False Questions:")
+    sections = response_text.split("\n\nTrue/False Questions:\n\n")
+
+    if len(sections) == 2:
+        mcq_section, tf_section = sections
+    else:
+        mcq_section = sections[0]
+        tf_section = ""
+
+    # Parse multiple-choice questions
+    mcq_parts = mcq_section.split("\n\n")
+    for part in mcq_parts:
+        lines = part.split("\n")
+        if len(lines) >= 7:  # Ensure there are enough lines for a question, 4 options, answer, and explanation
+            question = {
+                "question": lines[0].strip(),
+                "options": [lines[1].strip(), lines[2].strip(), lines[3].strip(), lines[4].strip()],
+                "answer": lines[5].strip(),
+                "explanation": lines[6].strip()
+            }
+            questions.append(question)
+
+    # Parse true/false questions
+    tf_parts = tf_section.split("\n\n")
+    for part in tf_parts:
+        lines = part.split("\n")
+        if len(lines) >= 3:  # Ensure there are enough lines for a question, answer, and explanation
+            question = {
+                "question": lines[0].strip(),
+                "options": ["True", "False"],
+                "answer": lines[1].strip(),
+                "explanation": lines[2].strip()
+            }
+            questions.append(question)
+
+    return questions
+
 def generate_quiz_questions_for_chunk(chunk: str) -> list:
     prompt = f"""
     You are an expert quiz generator. Based on the following transcript, create three multiple-choice quiz questions and two true/false questions.
@@ -132,24 +172,10 @@ def generate_quiz_questions_for_chunk(chunk: str) -> list:
         if completions.choices and completions.choices[0].message.content:
             response_text = completions.choices[0].message.content.strip()
 
-            # Debug: Display the raw response text
-            st.write("### Raw Response from API")
-            st.write(response_text)
+            # Parse the response text
+            questions = parse_questions_from_response(response_text)
 
-            questions = []
-            for q in response_text.split('\n\n'):
-                parts = q.split('\n')
-                if len(parts) >= 4:
-                    question = {
-                        "question": parts[0].strip(),
-                        "options": parts[1:5],
-                        "answer": parts[5].strip(),
-                        "explanation": parts[6].strip() if len(parts) > 6 else ""
-                    }
-                    questions.append(question)
             return questions
-    except IndexError:
-        st.error("Failed to parse the quiz questions. The response might be incomplete or incorrectly formatted.")
     except Exception as e:
         st.error(f"Error generating quiz questions: {e}")
     return []
