@@ -201,6 +201,7 @@ if topic:
                             st.info(f"Explanation: {question['explanation']}")
                             st.session_state['explanation_displayed'] = True
 
+                # Display the explanation only after submission
                 if st.session_state[f'quiz_submitted_{index}_{idx}'] and not st.session_state['explanation_displayed']:
                     st.info(f"Explanation: {question['explanation']}")
                     st.session_state['explanation_displayed'] = True
