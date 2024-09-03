@@ -16,18 +16,9 @@ def load_csv_from_github():
 def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     prompt = f"""
     You are an expert quiz generator. Based on the following transcript, create {num_questions} quiz questions.
-    Ensure that there is a mix of multiple-choice (with exactly 4 options) and true/false questions.
     Each correct answer must be accurate, logically consistent, and clearly derived from the content of the transcript.
-    All questions should be clearly formatted and avoid using characters like hyphens, asterisks, or unnecessary spaces.
-    For multiple-choice questions, ensure there are exactly 4 answer choices.
-    For true/false questions, phrase them as clear, declarative statements that can be evaluated as true or false.
-    Avoid using any interrogative words or phrases, such as "What", "Which", "How", "When", "Where", "Who", or "Why".
+    All questions should be multiple-choice with exactly 4 options.
     
-    Example of a valid true/false question:
-    "True or False: Paris is the capital of France."
-
-    If a valid true/false question cannot be generated, generate multiple-choice questions instead to ensure a total of {num_questions} questions.
-
     Example of a valid multiple-choice question:
     Question: What is the capital of France?
     A) Paris
@@ -37,7 +28,10 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     Answer: A) Paris
     Explanation: Paris is the capital of France.
 
-    Ensure there are exactly {num_questions} questions generated.
+    If possible, convert one multiple-choice question into a true/false question, phrasing it as a clear, declarative statement that can be evaluated as true or false.
+    
+    Example of a valid true/false question:
+    "True or False: Paris is the capital of France."
 
     Transcript:
     {transcript}
@@ -54,9 +48,6 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
             questions = completion_content.split("\n\n")
 
             parsed_questions = []
-            multiple_choice_questions = []
-            true_false_questions = []
-
             for q in questions:
                 lines = [line.strip() for line in q.split("\n") if line.strip()]
                 if len(lines) >= 2:
@@ -75,35 +66,29 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
                         if line.startswith("Explanation:"):
                             explanation = line.split("Explanation:")[1].strip()
 
-                    # Classify questions into true/false and multiple-choice
-                    if len(options) == 2 and all(opt in ["True", "False"] for opt in options):
-                        # Ensure the question is a proper statement for true/false evaluation
-                        if "?" not in question_text:
-                            true_false_questions.append({
-                                "question": question_text,
-                                "options": options,
-                                "answer": answer,
-                                "explanation": explanation
-                            })
-                    elif len(options) == 4:
-                        multiple_choice_questions.append({
+                    if len(options) == 4:
+                        parsed_questions.append({
                             "question": question_text,
                             "options": options,
                             "answer": answer,
                             "explanation": explanation
                         })
 
-            # Prioritize adding true/false questions first, then fill with multiple-choice
-            parsed_questions = true_false_questions[:1] + multiple_choice_questions[:num_questions - len(true_false_questions)]
-
-            # If fewer than the required number of questions, attempt to fill with additional multiple-choice
-            if len(parsed_questions) < num_questions:
-                parsed_questions.extend(multiple_choice_questions[len(parsed_questions):num_questions])
-
-            # Final check for the required number of questions
+            # Ensure we have exactly 5 questions
             if len(parsed_questions) < num_questions:
                 st.error("Failed to generate the required number of quiz questions. Please try again.")
                 return []
+
+            # Attempt to convert the first question to a true/false if applicable
+            if parsed_questions and len(parsed_questions[0]["options"]) == 4:
+                first_question = parsed_questions.pop(0)
+                true_false_question = {
+                    "question": f"True or False: {first_question['question']}",
+                    "options": ["True", "False"],
+                    "answer": "True" if first_question["answer"] in ["True", "A"] else "False",
+                    "explanation": first_question["explanation"]
+                }
+                parsed_questions.insert(0, true_false_question)
 
             # Properly number the questions sequentially
             for i, question in enumerate(parsed_questions, 1):
