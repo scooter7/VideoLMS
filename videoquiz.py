@@ -32,7 +32,7 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     Answer: A) Paris
     Explanation: Paris is the capital of France.
 
-    Ensure there are exactly {num_questions} questions generated.
+    Ensure there are exactly {num_questions} questions generated, including at least one true/false question.
 
     Transcript:
     {transcript}
@@ -50,6 +50,9 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
             questions = completion_content.split("\n\n")
 
             parsed_questions = []
+            true_false_questions = []
+            multiple_choice_questions = []
+
             for q in questions:
                 lines = [line.strip() for line in q.split("\n") if line.strip()]
 
@@ -69,25 +72,43 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
                         if line.startswith("Explanation:"):
                             explanation = line.split("Explanation:")[1].strip()
 
-                    # Ensure True/False options are handled correctly
-                    if len(options) == 1 and ("True" in options[0] or "False" in options[0]):
-                        options = ["True", "False"]
-
-                    # Skip any questions that don't have the correct number of options
-                    if len(options) == 2 and all(opt in ["True", "False"] for opt in options) or len(options) == 4:
-                        parsed_questions.append({
+                    # Classify questions into true/false and multiple-choice
+                    if len(options) == 2 and all(opt in ["True", "False"] for opt in options):
+                        true_false_questions.append({
+                            "question": question_text,
+                            "options": options,
+                            "answer": answer,
+                            "explanation": explanation
+                        })
+                    elif len(options) == 4:
+                        multiple_choice_questions.append({
                             "question": question_text,
                             "options": options,
                             "answer": answer,
                             "explanation": explanation
                         })
 
-            # Ensure exactly 5 questions are returned
-            if len(parsed_questions) > num_questions:
-                parsed_questions = parsed_questions[:num_questions]
+            # Ensure exactly 5 questions with at least one true/false question
+            while len(true_false_questions) < 1:
+                # If no true/false questions were generated, convert a multiple-choice question
+                if multiple_choice_questions:
+                    question = multiple_choice_questions.pop(0)
+                    true_false_question = {
+                        "question": question["question"],
+                        "options": ["True", "False"],
+                        "answer": "True" if "True" in question["answer"] else "False",
+                        "explanation": question["explanation"]
+                    }
+                    true_false_questions.append(true_false_question)
 
-            if not parsed_questions:
-                st.error("No valid quiz questions could be generated. Please try again with a different video.")
+            # Combine true/false and multiple-choice questions, prioritizing true/false
+            parsed_questions = true_false_questions + multiple_choice_questions[:num_questions - len(true_false_questions)]
+
+            # Ensure exactly 5 questions
+            parsed_questions = parsed_questions[:num_questions]
+
+            if not parsed_questions or len(parsed_questions) < num_questions:
+                st.error("Failed to generate the required number of quiz questions. Please try again.")
             return parsed_questions
 
         else:
