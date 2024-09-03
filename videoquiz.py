@@ -112,7 +112,9 @@ if topic:
         if f'quiz_questions_{index}' in st.session_state:
             st.subheader(f"Quiz for Video {index + 1}")
 
-            video_score = st.session_state[f'quiz_scores_{index}']  # Start with the current score
+            # Make sure score is initialized
+            video_score = st.session_state.get(f'quiz_scores_{index}', 0)
+            
             for idx, question in enumerate(st.session_state[f'quiz_questions_{index}']):
                 st.write(f"**Question {idx + 1}:** {question['question']}")
 
