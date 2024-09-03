@@ -100,7 +100,12 @@ def chunk_text(text, max_chunk_size=3000):
 
 def clean_answer(answer):
     answer = answer.replace("Answer:", "").strip()  # Remove 'Answer:' prefix if it exists
-    return re.sub(r'[^a-zA-Z]', '', answer).strip().lower()
+    answer = answer.lower()  # Convert to lowercase
+    if "true" in answer:
+        return "true"
+    elif "false" in answer:
+        return "false"
+    return re.sub(r'[^a-zA-Z]', '', answer).strip()
 
 def parse_questions_from_response(response_text):
     questions = []
@@ -132,7 +137,7 @@ def parse_questions_from_response(response_text):
             question = {
                 "question": lines[0].strip(),
                 "options": ["True", "False"],
-                "answer": clean_answer(lines[1].strip()),  # Ensure this is either "True" or "False"
+                "answer": clean_answer(lines[1].strip()),  # Ensure this is either "true" or "false"
                 "explanation": lines[2].strip()
             }
             questions.append(question)
