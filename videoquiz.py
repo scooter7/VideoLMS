@@ -35,7 +35,7 @@ def generate_quiz_questions_for_chunk(chunk: str) -> list:
     prompt = f"""
     You are an expert quiz generator. Based on the following transcript, create three multiple-choice quiz questions and two true/false questions.
     Each correct answer must be accurate, logically consistent, and clearly derived from the content of the transcript.
-    All multiple choice questions should have exactly 4 options.
+    All multiple choice questions should have exactly 4 options and all true/false questions should only have two options (true and false).
     
     Example of a valid multiple-choice question:
     Question: What is the capital of France?
@@ -88,7 +88,14 @@ def generate_quiz_questions_for_chunk(chunk: str) -> list:
                         if line.startswith("Explanation:"):
                             explanation = line.split("Explanation:")[1].strip()
 
-                    if len(options) == 4:
+                    if options and len(options) == 2:  # True/False question
+                        parsed_questions.append({
+                            "question": question_text,
+                            "options": options,
+                            "answer": answer,
+                            "explanation": explanation
+                        })
+                    elif len(options) == 4:  # Multiple choice question
                         parsed_questions.append({
                             "question": question_text,
                             "options": options,
@@ -192,9 +199,6 @@ if topic:
                 else:
                     st.warning("No options available for this question. Skipping...")
                     continue
-
-                # Store the user's answer
-                st.session_state[f'quiz_answers_{index}'][idx] = user_answer
 
                 # Show the Submit Answer button for each question
                 if not st.session_state[f'quiz_submitted_{index}_{idx}']:
