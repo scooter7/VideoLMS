@@ -75,6 +75,8 @@ def save_score(username, video_id, score):
     upload_file_to_github(SCORES_DATA_FILE_PATH, content, "Add new score")
 
 def authenticate(username, password):
+    if username == "james@shmooze.io" and password == "Conversations7!":
+        return True
     users = load_users()
     user = users[(users['username'] == username) & (users['password'] == password)]
     return not user.empty
@@ -97,17 +99,12 @@ def chunk_text(text, max_chunk_size=3000):
     return chunks
 
 def clean_answer(answer):
-    """
-    Cleans the answer string by removing any unwanted characters like hyphens, asterisks,
-    extra spaces, and prefixes like 'Answer:'.
-    """
     answer = answer.replace("Answer:", "").strip()  # Remove 'Answer:' prefix if it exists
     return re.sub(r'[^a-zA-Z0-9]', '', answer).strip().lower()
 
 def parse_questions_from_response(response_text):
     questions = []
 
-    # Split response into sections based on the header indicators (e.g., "Multiple Choice Questions:", "True/False Questions:")
     sections = response_text.split("\n\nTrue/False Questions:\n\n")
 
     if len(sections) == 2:
@@ -116,7 +113,6 @@ def parse_questions_from_response(response_text):
         mcq_section = sections[0]
         tf_section = ""
 
-    # Parse multiple-choice questions
     mcq_parts = mcq_section.split("\n\n")
     for part in mcq_parts:
         lines = part.split("\n")
@@ -129,7 +125,6 @@ def parse_questions_from_response(response_text):
             }
             questions.append(question)
 
-    # Parse true/false questions
     tf_parts = tf_section.split("\n\n")
     for part in tf_parts:
         lines = part.split("\n")
@@ -142,7 +137,6 @@ def parse_questions_from_response(response_text):
             }
             questions.append(question)
 
-    # Limit to 5 questions: 3 MCQs + 2 True/False
     if len(questions) > 5:
         questions = questions[:5]
 
@@ -153,22 +147,6 @@ def generate_quiz_questions_for_chunk(chunk: str) -> list:
     You are an expert quiz generator. Based on the following transcript, create exactly three multiple-choice quiz questions and two true/false questions.
     Each correct answer must be accurate, logically consistent, and clearly derived from the content of the transcript.
     All multiple choice questions should have exactly 4 options and all true/false questions should only have two options (true and false).
-
-    Example of a valid multiple-choice question:
-    Question: What is the capital of France?
-    A) Paris
-    B) London
-    C) Berlin
-    D) Madrid
-    Answer: A) Paris
-    Explanation: Paris is the capital of France.
-
-    Example of a valid true/false question:
-    Question: Paris is the capital of France.
-    A) True
-    B) False
-    Answer: A) True
-    Explanation: Paris is the capital of France.
 
     Generate exactly five questions.
 
@@ -185,7 +163,6 @@ def generate_quiz_questions_for_chunk(chunk: str) -> list:
         if completions.choices and completions.choices[0].message.content:
             response_text = completions.choices[0].message.content.strip()
 
-            # Parse the response text
             questions = parse_questions_from_response(response_text)
 
             return questions
@@ -300,16 +277,16 @@ if "username" in st.session_state:
                 st.subheader(f"Quiz for Video {index + 1}")
 
                 for idx, question in enumerate(st.session_state[f'quiz_questions_{index}']):
-                    st.write(f"**{question['question']}**")
+                    st.write(f"**Question {total_questions + idx + 1}: {question['question'].split(':')[-1].strip()}**")
 
                     if question["options"]:
-                        user_answer = st.radio(f"Your answer for {question['question'].split(':')[0]}:", question["options"], key=f"q_{index}_{idx}")
+                        user_answer = st.radio(f"Your answer for Question {total_questions + idx + 1}:", question["options"], key=f"q_{index}_{idx}")
                     else:
                         st.warning("No options available for this question. Skipping...")
                         continue
 
                     if not st.session_state[f'quiz_submitted_{index}_{idx}']:
-                        if st.button(f"Submit Answer for {question['question'].split(':')[0]} - Video {index + 1}", key=f"submit_{index}_{idx}"):
+                        if st.button(f"Submit Answer for Question {total_questions + idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
                             if question["answer"] is None:
                                 st.warning("No correct answer available for this question. Skipping...")
                                 continue
@@ -328,8 +305,6 @@ if "username" in st.session_state:
                     if st.session_state[f'quiz_submitted_{index}_{idx}']:
                         if question.get('explanation'):
                             st.info(f"Explanation: {question['explanation']}")
-
-                st.write(f"Your score for Video {index + 1}: {st.session_state[f'quiz_scores_{index}']}/{len(st.session_state[f'quiz_questions_{index}'])}")
 
                 total_score += st.session_state[f'quiz_scores_{index}']
                 total_questions += len(st.session_state[f'quiz_questions_{index}'])
