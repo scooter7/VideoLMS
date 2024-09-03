@@ -97,6 +97,16 @@ if topic:
         # Display the embedded video
         st.video(video_url)
 
+        # Initialize session state variables if they don't exist
+        if f'quiz_submitted_{index}' not in st.session_state:
+            st.session_state[f'quiz_submitted_{index}'] = False
+        if f'quiz_scores_{index}' not in st.session_state:
+            st.session_state[f'quiz_scores_{index}'] = 0
+        if f'quiz_questions_{index}' not in st.session_state:
+            st.session_state[f'quiz_questions_{index}'] = []
+        if f'quiz_answers_{index}' not in st.session_state:
+            st.session_state[f'quiz_answers_{index}'] = []
+
         # "Watched Video" button to trigger quiz generation
         if st.button(f"I've watched this video {index + 1}"):
             with st.spinner("Generating quiz..."):
@@ -111,12 +121,9 @@ if topic:
                     st.error(f"Failed to generate quiz for video {index + 1}.")
 
         # Display the generated quiz questions interactively
-        if f'quiz_questions_{index}' in st.session_state:
+        if st.session_state[f'quiz_questions_{index}']:
             st.subheader(f"Quiz for Video {index + 1}")
 
-            # Make sure score is initialized
-            video_score = st.session_state.get(f'quiz_scores_{index}', 0)
-            
             for idx, question in enumerate(st.session_state[f'quiz_questions_{index}']):
                 st.write(f"**Question {idx + 1}:** {question['question']}")
 
@@ -148,12 +155,9 @@ if topic:
                         # Compare user answer with correct answer
                         if user_answer_clean == correct_answer_clean:
                             st.success("Correct!")
-                            video_score += 1  # Increment score for this video
+                            st.session_state[f'quiz_scores_{index}'] += 1  # Increment score for this video
                         else:
                             st.error(f"Incorrect. The correct answer was: {question['answer']}")
-
-                        # Update the score for this video in session state
-                        st.session_state[f'quiz_scores_{index}'] = video_score
 
                         # Mark the quiz as submitted
                         st.session_state[f'quiz_submitted_{index}'] = True
@@ -161,7 +165,7 @@ if topic:
                         # Show explanation after the answer is submitted
                         st.info(f"Explanation: {question.get('explanation', 'No explanation provided.')}")
 
-            st.write(f"Your score for Video {index + 1}: {video_score}/{len(st.session_state[f'quiz_questions_{index}'])}")
+            st.write(f"Your score for Video {index + 1}: {st.session_state[f'quiz_scores_{index}']}/{len(st.session_state[f'quiz_questions_{index}'])}")
             
             # Update the total score and total questions count
             total_score += st.session_state[f'quiz_scores_{index}']
