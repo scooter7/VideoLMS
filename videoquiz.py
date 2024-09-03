@@ -168,7 +168,6 @@ if topic:
                     st.error(f"Failed to generate quiz for video {index + 1}.")
 
         if st.session_state.get(f'quiz_questions_{index}'):
-            st.session_state['explanation_displayed'] = False
             st.subheader(f"Quiz for Video {index + 1}")
 
             for idx, question in enumerate(st.session_state[f'quiz_questions_{index}']):
@@ -197,14 +196,10 @@ if topic:
 
                         st.session_state[f'quiz_submitted_{index}_{idx}'] = True
 
-                        if question.get('explanation'):
-                            st.info(f"Explanation: {question['explanation']}")
-                            st.session_state['explanation_displayed'] = True
-
                 # Display the explanation only after submission
-                if st.session_state[f'quiz_submitted_{index}_{idx}'] and not st.session_state['explanation_displayed']:
-                    st.info(f"Explanation: {question['explanation']}")
-                    st.session_state['explanation_displayed'] = True
+                if st.session_state[f'quiz_submitted_{index}_{idx}']:
+                    if question.get('explanation'):
+                        st.info(f"Explanation: {question['explanation']}")
 
             st.write(f"Your score for Video {index + 1}: {st.session_state[f'quiz_scores_{index}']}/{len(st.session_state[f'quiz_questions_{index}'])}")
 
