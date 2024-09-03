@@ -233,7 +233,7 @@ else:
         del st.session_state["username"]
         del st.session_state["is_admin"]
         st.sidebar.success("Logged out successfully!")
-        st.experimental_rerun()
+        st.experimental_set_query_params()  # Reset the app's state
 
 if "is_admin" in st.session_state and st.session_state["is_admin"]:
     st.sidebar.title("Admin Page")
