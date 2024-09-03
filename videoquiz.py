@@ -103,6 +103,7 @@ if topic:
                 st.session_state[f'quiz_questions_{index}'] = quiz_questions
                 st.session_state[f'quiz_answers_{index}'] = [None] * len(quiz_questions)
                 st.session_state[f'quiz_scores_{index}'] = 0  # Initialize score for this quiz
+                st.session_state[f'quiz_submitted_{index}'] = [False] * len(quiz_questions)  # Track submission status
                 if quiz_questions:
                     st.success(f"Quiz generated for video {index + 1}!")
                 else:
@@ -128,7 +129,9 @@ if topic:
                 # Store the user's answer
                 st.session_state[f'quiz_answers_{index}'][idx] = user_answer
 
+                # Only show correct answer and explanation after submission
                 if st.button(f"Submit Answer for Question {idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
+                    st.session_state[f'quiz_submitted_{index}'][idx] = True
                     if question["answer"] is None:
                         st.warning("No correct answer available for this question. Skipping...")
                         continue
