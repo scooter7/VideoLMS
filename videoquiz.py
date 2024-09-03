@@ -155,6 +155,10 @@ if topic:
                     else:
                         st.error(f"Incorrect. The correct answer was: {question['answer']}")
 
+                    # Show the explanation only after the user submits an answer
+                    if question["explanation"]:
+                        st.info(f"Explanation: {question['explanation']}")
+
                 # Update the score for this video in session state
                 st.session_state[f'quiz_scores_{index}'] = video_score
 
