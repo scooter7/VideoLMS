@@ -18,7 +18,18 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     You are an expert quiz generator. Based on the following transcript, create {num_questions} quiz questions.
     Each question should be either a multiple-choice question (with 4 options) or a true/false question.
     Ensure that each correct answer is accurate, logically consistent, and clearly derived from the content of the transcript.
-    Also, explain briefly why the correct answer is correct.
+    All questions should be clearly formatted and avoid using characters like hyphens, asterisks, or unnecessary spaces.
+    Provide the explanation for the correct answer in a separate line after the answer.
+    Do not include the explanation in the main answer line.
+
+    Example question formatting:
+    Question: What is the capital of France?
+    A) Paris
+    B) London
+    C) Berlin
+    D) Madrid
+    Answer: A) Paris
+    Explanation: Paris is the capital of France.
 
     Transcript:
     {transcript}
@@ -37,26 +48,29 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
 
             parsed_questions = []
             for q in questions:
-                lines = q.split("\n")
-                if len(lines) >= 2:
-                    question_text = lines[0].strip()
-                    options = [line.strip() for line in lines[1:] if line.strip()]
+                lines = [line.strip() for line in q.split("\n") if line.strip()]
 
-                    # Handle True/False questions properly
-                    if len(options) == 1 and ("True" in options[0] or "False" in options[0]):
-                        options = ["True", "False"]
-                        answer = "True" if "True" in options[0] else "False"
-                    else:
-                        # Extract the correct answer for multiple-choice questions
-                        answer = None
-                        if "Answer:" in options[-1]:
-                            answer = options[-1].split("Answer:")[1].strip("*").strip()
-                            options = options[:-1]
+                if len(lines) >= 2:
+                    question_text = lines[0]
+                    options = [line for line in lines[1:] if line and not line.startswith("Answer:")]
+                    answer = None
+                    explanation = None
+
+                    # Clean and format options
+                    options = [option.replace("-", "").replace("*", "").strip() for option in options]
+
+                    # Extract answer and explanation
+                    for line in lines:
+                        if line.startswith("Answer:"):
+                            answer = line.split("Answer:")[1].strip()
+                        if line.startswith("Explanation:"):
+                            explanation = line.split("Explanation:")[1].strip()
 
                     parsed_questions.append({
                         "question": question_text,
                         "options": options,
-                        "answer": answer
+                        "answer": answer,
+                        "explanation": explanation
                     })
 
             if not parsed_questions:
@@ -149,9 +163,6 @@ if topic:
                         correct_answer_clean = question["answer"].strip().lower().replace(" ", "")
                         user_answer_clean = user_answer.strip().lower().replace(" ", "")
 
-                        # Ensure no extra characters like hyphens are present
-                        user_answer_clean = user_answer_clean.lstrip('-')
-
                         # Compare user answer with correct answer
                         if user_answer_clean == correct_answer_clean:
                             st.success("Correct!")
@@ -163,7 +174,8 @@ if topic:
                         st.session_state[f'quiz_submitted_{index}'] = True
 
                         # Show explanation after the answer is submitted
-                        st.info(f"Explanation: {question.get('explanation', 'No explanation provided.')}")
+                        if question.get('explanation'):
+                            st.info(f"Explanation: {question['explanation']}")
 
             st.write(f"Your score for Video {index + 1}: {st.session_state[f'quiz_scores_{index}']}/{len(st.session_state[f'quiz_questions_{index}'])}")
             
