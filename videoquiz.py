@@ -17,7 +17,8 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
     prompt = f"""
     You are an expert quiz generator. Based on the following transcript, create {num_questions} quiz questions.
     Each question should be either a multiple-choice question (with 4 options) or a true/false question.
-    Provide the correct answer for each question.
+    Ensure that each correct answer is accurate, logically consistent, and clearly derived from the content of the transcript.
+    Also, explain briefly why the correct answer is correct.
 
     Transcript:
     {transcript}
@@ -52,10 +53,16 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
                             answer = options[-1].split("Answer:")[1].strip("*").strip()
                             options = options[:-1]
 
+                    # Adding a brief explanation to verify consistency
+                    explanation = ""
+                    if "Explanation:" in options[-1]:
+                        explanation = options[-1].split("Explanation:")[1].strip()
+
                     parsed_questions.append({
                         "question": question_text,
                         "options": options,
-                        "answer": answer
+                        "answer": answer,
+                        "explanation": explanation
                     })
 
             if not parsed_questions:
