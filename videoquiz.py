@@ -68,15 +68,17 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
                             explanation = line.split("Explanation:")[1].strip()
 
                     # Ensure True/False options are handled correctly
-                    if len(options) == 2 and all(opt in ["True", "False"] for opt in options):
+                    if len(options) == 1 and ("True" in options[0] or "False" in options[0]):
                         options = ["True", "False"]
 
-                    parsed_questions.append({
-                        "question": question_text,
-                        "options": options,
-                        "answer": answer,
-                        "explanation": explanation
-                    })
+                    # Skip any questions that don't have the correct number of options
+                    if len(options) == 2 and all(opt in ["True", "False"] for opt in options) or len(options) == 4:
+                        parsed_questions.append({
+                            "question": question_text,
+                            "options": options,
+                            "answer": answer,
+                            "explanation": explanation
+                        })
 
             if not parsed_questions:
                 st.error("No valid quiz questions could be generated. Please try again with a different video.")
@@ -156,8 +158,8 @@ if topic:
                 # Store the user's answer
                 st.session_state[f'quiz_answers_{index}'][idx] = user_answer
 
-                # Show the Submit Answer button if the quiz hasn't been submitted yet
-                if not st.session_state[f'quiz_submitted_{index}']:
+                # Show the Submit Answer button for each question
+                if not st.session_state[f'quiz_submitted_{index}_{idx}']:
                     if st.button(f"Submit Answer for Question {idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
                         # Check if the answer is None and handle appropriately
                         if question["answer"] is None:
@@ -176,7 +178,7 @@ if topic:
                             st.error(f"Incorrect. The correct answer was: {question['answer']}")
 
                         # Mark the quiz as submitted
-                        st.session_state[f'quiz_submitted_{index}'] = True
+                        st.session_state[f'quiz_submitted_{index}_{idx}'] = True
 
                         # Show explanation after the answer is submitted
                         if question.get('explanation'):
