@@ -143,6 +143,8 @@ def generate_quiz_questions_for_chunk(chunk: str) -> list:
                     }
                     questions.append(question)
             return questions
+    except IndexError:
+        st.error("Failed to parse the quiz questions. The response might be incomplete or incorrectly formatted.")
     except Exception as e:
         st.error(f"Error generating quiz questions: {e}")
     return []
