@@ -30,6 +30,7 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
             messages=[{"role": "user", "content": prompt}]
         )
 
+        # Extract the content from the completion response
         if completions.choices and completions.choices[0].message.content:
             completion_content = completions.choices[0].message.content.strip()
             questions = completion_content.split("\n\n")
@@ -39,23 +40,23 @@ def generate_quiz_questions(transcript: str, num_questions: int = 5) -> list:
                 lines = q.split("\n")
                 if len(lines) >= 2:
                     question_text = lines[0].strip()
-                    options = [line.strip() for line in lines[1:] if line.strip() and not line.startswith("Answer:") and not line.startswith("Explanation:")]
+                    options = [line.strip() for line in lines[1:] if line.strip()]
 
-                    answer = None
-                    explanation = ""
-
-                    # Extract the correct answer and explanation
-                    for line in lines:
-                        if "Answer:" in line:
-                            answer = line.split("Answer:")[1].strip("*").strip()
-                        if "Explanation:" in line:
-                            explanation = line.split("Explanation:")[1].strip()
+                    # Handle True/False questions properly
+                    if len(options) == 1 and ("True" in options[0] or "False" in options[0]):
+                        options = ["True", "False"]
+                        answer = "True" if "True" in options[0] else "False"
+                    else:
+                        # Extract the correct answer for multiple-choice questions
+                        answer = None
+                        if "Answer:" in options[-1]:
+                            answer = options[-1].split("Answer:")[1].strip("*").strip()
+                            options = options[:-1]
 
                     parsed_questions.append({
                         "question": question_text,
                         "options": options,
-                        "answer": answer,
-                        "explanation": explanation
+                        "answer": answer
                     })
 
             if not parsed_questions:
@@ -103,7 +104,6 @@ if topic:
                 st.session_state[f'quiz_questions_{index}'] = quiz_questions
                 st.session_state[f'quiz_answers_{index}'] = [None] * len(quiz_questions)
                 st.session_state[f'quiz_scores_{index}'] = 0  # Initialize score for this quiz
-                st.session_state[f'quiz_submitted_{index}'] = [False] * len(quiz_questions)  # Track submission status
                 if quiz_questions:
                     st.success(f"Quiz generated for video {index + 1}!")
                 else:
@@ -126,34 +126,31 @@ if topic:
                     st.warning("No options available for this question. Skipping...")
                     continue
 
-                # Only show the submission button if the user hasn't submitted this question yet
-                if not st.session_state[f'quiz_submitted_{index}'][idx]:
-                    if st.button(f"Submit Answer for Question {idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
-                        st.session_state[f'quiz_submitted_{index}'][idx] = True
-                        if question["answer"] is None:
-                            st.warning("No correct answer available for this question. Skipping...")
-                            continue
+                # Store the user's answer
+                st.session_state[f'quiz_answers_{index}'][idx] = user_answer
 
-                        # Normalize both answers for comparison
-                        correct_answer_clean = question["answer"].strip().lower().replace(" ", "")
-                        user_answer_clean = user_answer.strip().lower().replace(" ", "")
+                if st.button(f"Submit Answer for Question {idx + 1} - Video {index + 1}", key=f"submit_{index}_{idx}"):
+                    # Check if the answer is None and handle appropriately
+                    if question["answer"] is None:
+                        st.warning("No correct answer available for this question. Skipping...")
+                        continue
+                    
+                    # Normalize both answers for comparison
+                    correct_answer_clean = question["answer"].strip().lower().replace(" ", "")
+                    user_answer_clean = user_answer.strip().lower().replace(" ", "")
 
-                        # Ensure no extra characters like hyphens are present
-                        user_answer_clean = user_answer_clean.lstrip('-')
+                    # Ensure no extra characters like hyphens are present
+                    user_answer_clean = user_answer_clean.lstrip('-')
 
-                        # Compare user answer with correct answer
-                        if user_answer_clean == correct_answer_clean:
-                            st.success("Correct!")
-                            video_score += 1  # Increment score for this video
-                        else:
-                            st.error(f"Incorrect. The correct answer was: {question['answer']}")
+                    # Compare user answer with correct answer
+                    if user_answer_clean == correct_answer_clean:
+                        st.success("Correct!")
+                        video_score += 1  # Increment score for this video
+                    else:
+                        st.error(f"Incorrect. The correct answer was: {question['answer']}")
 
-                        # Show the explanation only after the user submits an answer
-                        if question["explanation"]:
-                            st.info(f"Explanation: {question['explanation']}")
-
-                        # Update the score for this video in session state
-                        st.session_state[f'quiz_scores_{index}'] = video_score
+                # Update the score for this video in session state
+                st.session_state[f'quiz_scores_{index}'] = video_score
 
             st.write(f"Your score for Video {index + 1}: {video_score}/{len(st.session_state[f'quiz_questions_{index}'])}")
             
