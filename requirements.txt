@@ -5,4 +5,4 @@ openai
 PyGithub
 pandas
 requests
-
+google-api-python-client
