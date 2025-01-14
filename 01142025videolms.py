@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import requests
 import openai
 import re
 from googleapiclient.discovery import build
@@ -32,13 +31,6 @@ def load_scores():
         return pd.read_csv(url)
     except Exception:
         return pd.DataFrame(columns=["username", "video_id", "score"])
-
-# Save quiz scores
-def save_score(username, video_id, score):
-    scores = load_scores()
-    new_score = pd.DataFrame({"username": [username], "video_id": [video_id], "score": [score]})
-    scores = pd.concat([scores, new_score], ignore_index=True)
-    # Upload to GitHub (implement GitHub upload logic here)
 
 # YouTube Search Functionality
 def search_youtube_videos(topic, max_results=10):
@@ -82,10 +74,6 @@ def parse_iso_duration(duration):
     return hours * 60 + minutes
 
 # Transcript Summarization and Quiz Generation
-def get_video_transcript(video_id):
-    # Dummy transcript for demonstration purposes
-    return f"This is a simulated transcript for video ID {video_id}."
-
 def summarize_transcript(transcript):
     prompt = f"Summarize the following transcript:\n\n{transcript}"
     response = openai.chat.completions.create(
@@ -105,7 +93,7 @@ def generate_quiz_from_summary(summary):
 # Streamlit App
 st.title("AI Video Quiz Generator")
 
-# Login and Admin Authentication
+# Login and Session Management
 if "username" not in st.session_state:
     st.sidebar.title("Login")
     username = st.sidebar.text_input("Username")
@@ -126,6 +114,7 @@ else:
         del st.session_state["role"]
         st.experimental_rerun()
 
+# Main Logic Based on Role
 if "username" in st.session_state:
     if st.session_state["role"] == "admin":
         st.sidebar.title("Admin Panel")
@@ -138,11 +127,11 @@ if "username" in st.session_state:
         topic = st.sidebar.radio("Select a Topic", ["AI in Manufacturing", "AI in Healthcare", "AI in Insurance"])
 
         if topic:
+            st.write(f"### Videos for {topic}")
             with st.spinner("Searching for top videos..."):
                 videos = search_youtube_videos(topic)
 
             if videos:
-                st.write(f"Top videos for: {topic}")
                 selected_videos = st.multiselect(
                     "Select up to 5 videos to watch:",
                     videos,
@@ -160,7 +149,7 @@ if "username" in st.session_state:
                 for video in st.session_state["selected_videos"]:
                     st.video(video["url"])
                     if st.button(f"I watched this video: {video['title']}", key=f"watched_{video['id']}"):
-                        transcript = get_video_transcript(video["id"])
+                        transcript = f"Dummy transcript for video {video['id']}."
                         summary = summarize_transcript(transcript)
                         quiz = generate_quiz_from_summary(summary)
 
