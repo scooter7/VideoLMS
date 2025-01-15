@@ -221,9 +221,17 @@ if st.session_state["username"]:
         with st.spinner("Fetching videos..."):
             videos = search_youtube_videos(topic)
 
-        selected_videos = st.multiselect(
-            "Select up to 5 videos to watch:",
-            videos,
-            format_func=lambda x: f"{x['title']} (Views: {x['views']}, Likes: {x['likes']}, Comments: {x['comments']})",
-            key="selected_videos"
-        )
+        for video in videos[:10]:
+            st.video(video["url"], format="YouTube")
+            checked = st.checkbox(f"Select {video['title']}", key=f"select_{video['id']}")
+            if checked:
+                st.session_state["selected_videos"].append(video)
+            else:
+                st.session_state["selected_videos"] = [
+                    v for v in st.session_state["selected_videos"] if v["id"] != video["id"]
+                ]
+
+        if st.session_state["selected_videos"]:
+            st.write("### Selected Videos")
+            for video in st.session_state["selected_videos"]:
+                st.write(f"- {video['title']} (Views: {video['views']}, Likes: {video['likes']})")
