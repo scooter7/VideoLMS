@@ -3,6 +3,7 @@ import pandas as pd
 import requests
 import openai
 from googleapiclient.discovery import build
+from youtube_transcript_api import YouTubeTranscriptApi
 
 # API configurations
 openai.api_key = st.secrets["openai"]["api_key"]
@@ -115,11 +116,20 @@ def search_youtube_videos(topic, max_results=10):
     return sorted(videos, key=lambda x: (-x["views"], -x["likes"], -x["comments"]))
 
 def fetch_video_transcript(video_id):
-    # Placeholder for transcript fetching logic
-    return f"Transcript for video {video_id}."
+    try:
+        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        # Combine transcript parts into a single string
+        full_transcript = " ".join([entry['text'] for entry in transcript])
+        return full_transcript
+    except Exception as e:
+        st.error(f"Could not fetch transcript for video {video_id}: {e}")
+        return None
 
 def summarize_transcript(transcript):
-    prompt = f"Summarize the following transcript:\n\n{transcript}"
+    if not transcript:
+        return None
+    
+    prompt = f"Summarize the following transcript in 100-150 words:\n\n{transcript}"
     try:
         response = openai.chat.completions.create(
             model="gpt-4o",
@@ -131,9 +141,12 @@ def summarize_transcript(transcript):
         return None
 
 def generate_quiz_from_summary(summary):
+    if not summary:
+        return None
+    
     prompt = f"""
     Based on the following summary, create a 5-question multiple-choice quiz.
-    Each question should include 4 options, one of which is correct.
+    Each question should have 4 options, one of which is correct.
 
     Summary:
     {summary}
@@ -234,31 +247,41 @@ if st.session_state["username"]:
         if st.button("Confirm Selected Videos"):
             st.session_state["confirmed_videos"] = st.session_state["selected_videos"]
 
+    # Display confirmed videos and allow users to generate quizzes
+    if st.session_state["confirmed_videos"]:
         st.write("### Confirmed Videos")
         
         for idx, video in enumerate(st.session_state["confirmed_videos"]):  # Use index for uniqueness
             st.video(video["url"])
-    
+            
             # Ensure the key is unique by including the index
             if st.button(f"I watched this! Quiz me! ({video['title']})", key=f"quiz_{video['id']}_{idx}"):
                 transcript = fetch_video_transcript(video["id"])
-                summary = summarize_transcript(transcript)
-                quiz = generate_quiz_from_summary(summary)
-                
-                # Save the quiz to session state
-                st.session_state["quizzes"][video["id"]] = quiz
-                st.success(f"Quiz generated for {video['title']}")
-
-        if st.session_state["quizzes"]:
-            st.write("### Take Quizzes")
+                if transcript:
+                    summary = summarize_transcript(transcript)
+                    if summary:
+                        quiz = generate_quiz_from_summary(summary)
+                        if quiz:
+                            st.session_state["quizzes"][video["id"]] = quiz
+                            st.success(f"Quiz generated for {video['title']}")
+                        else:
+                            st.error("Failed to generate quiz questions.")
+                    else:
+                        st.error("Failed to summarize the transcript.")
+                else:
+                    st.error("Failed to fetch the video transcript.")
+    
+    # Display quizzes if available
+    if st.session_state["quizzes"]:
+        st.write("### Take Quizzes")
+        
+        for video_id, quiz in st.session_state["quizzes"].items():
+            st.write(f"#### Quiz for Video ID {video_id}")
             
-            for video_id, quiz in st.session_state["quizzes"].items():
-                st.write(f"#### Quiz for Video ID {video_id}")
-                
-                for question in quiz:
-                    st.write(f"**{question['question']}**")
-                    st.radio(
-                        "Choose your answer:", 
-                        question["options"], 
-                        key=f"answer_{video_id}_{question['question']}"
-                    )
+            for question in quiz:
+                st.write(f"**{question['question']}**")
+                st.radio(
+                    "Choose your answer:", 
+                    question["options"], 
+                    key=f"answer_{video_id}_{question['question']}"
+                )
