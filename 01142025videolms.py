@@ -114,37 +114,37 @@ def fetch_transcript(video_id: str):
 
 # Function to download video and transcribe using Whisper
 def transcribe_with_whisper(video_url: str):
+    import tempfile
+
     try:
-        # Download the audio from YouTube
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'outtmpl': 'temp_audio.%(ext)s',
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }],
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([video_url])
+        # Temporary directory to save audio
+        with tempfile.TemporaryDirectory() as temp_dir:
+            audio_path = f"{temp_dir}/audio.mp3"
 
-        # Transcribe the audio using Whisper
-        with open("temp_audio.mp3", "rb") as audio_file:
-            response = openai.Audio.transcriptions.create(
-                model="whisper-1",
-                file=audio_file
-            )
-            transcript = response.get("text")
+            # Download the audio from YouTube
+            ydl_opts = {
+                'format': 'bestaudio/best',
+                'outtmpl': audio_path,
+                'postprocessors': [{
+                    'key': 'FFmpegExtractAudio',
+                    'preferredcodec': 'mp3',
+                    'preferredquality': '192',
+                }],
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([video_url])
 
-        # Cleanup temporary file
-        os.remove("temp_audio.mp3")
+            # Transcribe the audio using Whisper
+            with open(audio_path, "rb") as audio_file:
+                response = openai.Audio.transcriptions.create(
+                    model="whisper-1",
+                    file=audio_file
+                )
+                transcript = response.get("text")
 
-        return transcript if transcript else None
+            return transcript if transcript else None
 
     except Exception as e:
-        # Cleanup in case of error
-        if os.path.exists("temp_audio.mp3"):
-            os.remove("temp_audio.mp3")
         st.error(f"Failed to transcribe video using Whisper: {e}")
         return None
             
