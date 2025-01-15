@@ -4,6 +4,8 @@ import requests
 import openai
 from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, VideoUnavailable
+import base64
+import json
 
 # API configurations
 openai.api_key = st.secrets["openai"]["api_key"]
@@ -34,100 +36,38 @@ if "view_as_user" not in st.session_state:
     st.session_state["view_as_user"] = False
 
 # Helper Functions
-def get_file_sha(file_path):
-    url = f"{GITHUB_API_URL}/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_path}"
-    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        return response.json().get("sha", None)
+def get_video_id(url):
+    """Extracts video ID from a YouTube URL."""
+    if "watch?v=" in url:
+        return url.split("watch?v=")[1].split("&")[0]
+    elif "youtu.be/" in url:
+        return url.split("youtu.be/")[1].split("?")[0]
     return None
 
-def upload_file_to_github(file_path, content, message):
-    url = f"{GITHUB_API_URL}/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_path}"
-    headers = {"Authorization": f"token {GITHUB_TOKEN}", "Content-Type": "application/json"}
-    sha = get_file_sha(file_path)
-    data = {
-        "message": message,
-        "content": base64.b64encode(content.encode("utf-8")).decode("utf-8"),
-        "branch": "main"
-    }
-    if sha:
-        data["sha"] = sha
-    response = requests.put(url, headers=headers, data=json.dumps(data))
-    if response.status_code not in [200, 201]:
-        st.error(f"Failed to update {file_path} in GitHub: {response.text}")
+def fetch_video_details(api_key, video_id):
+    """Fetches video details using the YouTube Data API."""
+    youtube = build("youtube", "v3", developerKey=api_key)
+    request = youtube.videos().list(part="snippet", id=video_id)
+    response = request.execute()
 
-def load_users():
-    url = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/main/{USER_DATA_FILE_PATH}"
-    try:
-        return pd.read_csv(url)
-    except Exception as e:
-        st.warning(f"Could not load users. Creating a new file: {e}")
-        return pd.DataFrame(columns=["username", "password"])
+    if "items" in response and len(response["items"]) > 0:
+        snippet = response["items"][0]["snippet"]
+        title = snippet["title"]
+        description = snippet["description"]
+        return title, description
+    return None, None
 
-def save_user(username, password):
-    users = load_users()
-    if username in users["username"].values:
-        st.warning("Username already exists. Choose another username.")
-        return
-    new_user = pd.DataFrame({"username": [username], "password": [password]})
-    users = pd.concat([users, new_user], ignore_index=True)
-    upload_file_to_github(USER_DATA_FILE_PATH, users.to_csv(index=False), "Add new user")
-
-def authenticate(username, password):
-    if username == "admin@admin.com" and password == "admin123":
-        return "admin"
-    users = load_users()
-    user = users[(users["username"] == username) & (users["password"] == password)]
-    return "user" if not user.empty else None
-
-def search_youtube_videos(topic, max_results=10):
-    youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
-    search_response = youtube.search().list(
-        q=topic,
-        part="snippet",
-        type="video",
-        maxResults=max_results,
-        order="viewCount",
-        publishedAfter="2024-01-01T00:00:00Z"
-    ).execute()
-
-    video_ids = [item["id"]["videoId"] for item in search_response["items"]]
-
-    video_details = youtube.videos().list(
-        id=",".join(video_ids),
-        part="snippet,contentDetails,statistics"
-    ).execute()
-
-    videos = []
-    for video in video_details["items"]:
-        views = int(video["statistics"].get("viewCount", 0))
-        likes = int(video["statistics"].get("likeCount", 0))
-        comments = int(video["statistics"].get("commentCount", 0))
-        videos.append({
-            "id": video["id"],
-            "title": video["snippet"]["title"],
-            "url": f"https://www.youtube.com/watch?v={video['id']}",
-            "views": views,
-            "likes": likes,
-            "comments": comments
-        })
-
-    return sorted(videos, key=lambda x: (-x["views"], -x["likes"], -x["comments"]))
-
-def fetch_video_transcript(video_id):
+def fetch_transcript(video_id):
+    """Fetches the transcript for a YouTube video."""
     try:
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
-        return " ".join([entry["text"] for entry in transcript])
+        return " ".join([entry["text"] for entry in transcript]), None
     except NoTranscriptFound:
-        st.warning(f"Could not fetch transcript for video {video_id}: Subtitles are unavailable for this video.")
-        return None
+        return None, "No transcript available for this video."
     except VideoUnavailable:
-        st.error(f"Video {video_id} is unavailable or restricted.")
-        return None
+        return None, "Video is unavailable or restricted."
     except Exception as e:
-        st.error(f"An unexpected error occurred: {e}")
-        return None
+        return None, f"Error fetching transcript: {str(e)}"
 
 def summarize_transcript(transcript):
     if not transcript:
@@ -202,13 +142,18 @@ if st.session_state["username"] is None:
         username = st.sidebar.text_input("Username")
         password = st.sidebar.text_input("Password", type="password")
         if st.sidebar.button("Login"):
-            role = authenticate(username, password)
-            if role:
+            if username == "james@shmooze.io" and password == "Conversations7!":
                 st.session_state["username"] = username
-                st.session_state["role"] = role
-                st.sidebar.success(f"Welcome, {username}!")
+                st.session_state["role"] = "admin"
+                st.sidebar.success("Welcome, Admin!")
             else:
-                st.sidebar.error("Invalid credentials.")
+                role = authenticate(username, password)
+                if role:
+                    st.session_state["username"] = username
+                    st.session_state["role"] = role
+                    st.sidebar.success(f"Welcome, {username}!")
+                else:
+                    st.sidebar.error("Invalid credentials.")
     elif option == "Register":
         new_username = st.sidebar.text_input("Create a Username")
         new_password = st.sidebar.text_input("Create a Password", type="password")
@@ -256,9 +201,8 @@ if st.session_state["username"]:
         st.write("### Confirmed Videos")
         for idx, video in enumerate(st.session_state["confirmed_videos"]):  # Unique index for each button
             st.video(video["url"])
-            
             if st.button(f"I watched this! Quiz me! ({video['title']})", key=f"quiz_{video['id']}_{idx}"):
-                transcript = fetch_video_transcript(video["id"])
+                transcript, error = fetch_transcript(video["id"])
                 if transcript:
                     summary = summarize_transcript(transcript)
                     if summary:
@@ -271,4 +215,4 @@ if st.session_state["username"]:
                     else:
                         st.error("Failed to summarize the transcript.")
                 else:
-                    st.warning("Transcript not available for this video.")
+                    st.warning(error)
