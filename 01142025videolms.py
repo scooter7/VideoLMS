@@ -233,7 +233,7 @@ if st.session_state["username"]:
     
     if topic:
         st.write("### Available Videos")
-        videos = search_youtube_videos(topic)  # Call the restored function
+        videos = search_youtube_videos(topic)
         
         for video in videos[:10]:
             st.video(video["url"])
@@ -252,7 +252,7 @@ if st.session_state["username"]:
 # Display confirmed videos and allow users to generate quizzes
 if st.session_state["confirmed_videos"]:
     st.write("### Confirmed Videos")
-    for idx, video in enumerate(st.session_state["confirmed_videos"]):  # Unique index for each button
+    for idx, video in enumerate(st.session_state["confirmed_videos"]):
         st.video(video["url"])
         if st.button(f"I watched this! Quiz me! ({video['title']})", key=f"quiz_{video['id']}_{idx}"):
             transcript, error = fetch_transcript(video["id"])
@@ -280,12 +280,7 @@ if st.session_state["confirmed_videos"]:
                 st.write(f"**Question:** {q['question']}")
                 user_answer = st.radio(
                     f"Select your answer for Question {q_idx + 1}:",
-                    options=[
-                        f"A) {q['options'][0]}",
-                        f"B) {q['options'][1]}",
-                        f"C) {q['options'][2]}",
-                        f"D) {q['options'][3]}",
-                    ],
+                    options=[f"A) {q['options'][0]}", f"B) {q['options'][1]}", f"C) {q['options'][2]}", f"D) {q['options'][3]}"],
                     key=f"{video_id}_q{q_idx}"
                 )
 
@@ -296,3 +291,9 @@ if st.session_state["confirmed_videos"]:
                         st.success(f"Correct! The answer is {correct_answer}.")
                     else:
                         st.error(f"Incorrect! The correct answer is {correct_answer}.")
+
+# Remove st.experimental_rerun()
+# Use st.session_state.clear() for logout functionality if needed
+if st.sidebar.button("Logout"):
+    st.session_state.clear()
+    st.sidebar.success("Logged out successfully!")
