@@ -3,7 +3,7 @@ import pandas as pd
 import requests
 import openai
 from googleapiclient.discovery import build
-from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, VideoUnavailable
 
 # API configurations
 openai.api_key = st.secrets["openai"]["api_key"]
@@ -118,11 +118,15 @@ def search_youtube_videos(topic, max_results=10):
 def fetch_video_transcript(video_id):
     try:
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
-        # Combine transcript parts into a single string
-        full_transcript = " ".join([entry['text'] for entry in transcript])
-        return full_transcript
+        return " ".join([entry["text"] for entry in transcript])
+    except NoTranscriptFound:
+        st.warning(f"Could not fetch transcript for video {video_id}: Subtitles are unavailable for this video.")
+        return None
+    except VideoUnavailable:
+        st.error(f"Video {video_id} is unavailable or restricted.")
+        return None
     except Exception as e:
-        st.error(f"Could not fetch transcript for video {video_id}: {e}")
+        st.error(f"An unexpected error occurred: {e}")
         return None
 
 def summarize_transcript(transcript):
@@ -249,39 +253,22 @@ if st.session_state["username"]:
 
     # Display confirmed videos and allow users to generate quizzes
     if st.session_state["confirmed_videos"]:
-        st.write("### Confirmed Videos")
+    st.write("### Confirmed Videos")
+    for idx, video in enumerate(st.session_state["confirmed_videos"]):  # Unique index for each button
+        st.video(video["url"])
         
-        for idx, video in enumerate(st.session_state["confirmed_videos"]):  # Use index for uniqueness
-            st.video(video["url"])
-            
-            # Ensure the key is unique by including the index
-            if st.button(f"I watched this! Quiz me! ({video['title']})", key=f"quiz_{video['id']}_{idx}"):
-                transcript = fetch_video_transcript(video["id"])
-                if transcript:
-                    summary = summarize_transcript(transcript)
-                    if summary:
-                        quiz = generate_quiz_from_summary(summary)
-                        if quiz:
-                            st.session_state["quizzes"][video["id"]] = quiz
-                            st.success(f"Quiz generated for {video['title']}")
-                        else:
-                            st.error("Failed to generate quiz questions.")
+        if st.button(f"I watched this! Quiz me! ({video['title']})", key=f"quiz_{video['id']}_{idx}"):
+            transcript = fetch_video_transcript(video["id"])
+            if transcript:
+                summary = summarize_transcript(transcript)
+                if summary:
+                    quiz = generate_quiz_from_summary(summary)
+                    if quiz:
+                        st.session_state["quizzes"][video["id"]] = quiz
+                        st.success(f"Quiz generated for {video['title']}")
                     else:
-                        st.error("Failed to summarize the transcript.")
+                        st.error("Failed to generate quiz questions.")
                 else:
-                    st.error("Failed to fetch the video transcript.")
-    
-    # Display quizzes if available
-    if st.session_state["quizzes"]:
-        st.write("### Take Quizzes")
-        
-        for video_id, quiz in st.session_state["quizzes"].items():
-            st.write(f"#### Quiz for Video ID {video_id}")
-            
-            for question in quiz:
-                st.write(f"**{question['question']}**")
-                st.radio(
-                    "Choose your answer:", 
-                    question["options"], 
-                    key=f"answer_{video_id}_{question['question']}"
-                )
+                    st.error("Failed to summarize the transcript.")
+            else:
+                st.warning("Transcript not available for this video.")
