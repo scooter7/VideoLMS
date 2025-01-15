@@ -114,7 +114,7 @@ def fetch_transcript(video_id: str):
 
 def transcribe_with_whisper(video_url: str) -> str:
     """
-    Downloads the audio from a YouTube video and transcribes it using OpenAI's Whisper model.
+    Downloads audio from a YouTube video and transcribes it using OpenAI's Whisper model.
     Args:
         video_url (str): The URL of the YouTube video.
     Returns:
@@ -134,27 +134,26 @@ def transcribe_with_whisper(video_url: str) -> str:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([video_url])
 
-        # Transcribe audio using OpenAI Whisper
+        # Transcribe audio using Whisper
         transcript = None
         with open("temp_audio.mp3", "rb") as audio_file:
-            response = openai.Audio.transcribe(
-                file=audio_file,
-                model="whisper-1"
+            transcript_response = openai.Audio.transcribe(
+                model="whisper-1",
+                file=audio_file
             )
-            transcript = response.get("text", None)
+            transcript = transcript_response.get("text")
 
-        # Clean up the temporary file
+        # Clean up temporary audio file
         if os.path.exists("temp_audio.mp3"):
             os.remove("temp_audio.mp3")
 
-        if transcript:
-            return transcript
-        else:
-            return "Failed to retrieve transcription from Whisper."
+        return transcript if transcript else "Failed to retrieve transcription from Whisper."
+
     except Exception as e:
+        # Cleanup in case of an error
         if os.path.exists("temp_audio.mp3"):
             os.remove("temp_audio.mp3")
-        return f"Failed to transcribe video using Whisper: {str(e)}"
+        return f"Failed to transcribe video using Whisper: {e}"
             
 def summarize_transcript(transcript):
     if not transcript:
