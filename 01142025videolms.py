@@ -253,22 +253,22 @@ if st.session_state["username"]:
 
     # Display confirmed videos and allow users to generate quizzes
     if st.session_state["confirmed_videos"]:
-    st.write("### Confirmed Videos")
-    for idx, video in enumerate(st.session_state["confirmed_videos"]):  # Unique index for each button
-        st.video(video["url"])
-        
-        if st.button(f"I watched this! Quiz me! ({video['title']})", key=f"quiz_{video['id']}_{idx}"):
-            transcript = fetch_video_transcript(video["id"])
-            if transcript:
-                summary = summarize_transcript(transcript)
-                if summary:
-                    quiz = generate_quiz_from_summary(summary)
-                    if quiz:
-                        st.session_state["quizzes"][video["id"]] = quiz
-                        st.success(f"Quiz generated for {video['title']}")
+        st.write("### Confirmed Videos")
+        for idx, video in enumerate(st.session_state["confirmed_videos"]):  # Unique index for each button
+            st.video(video["url"])
+            
+            if st.button(f"I watched this! Quiz me! ({video['title']})", key=f"quiz_{video['id']}_{idx}"):
+                transcript = fetch_video_transcript(video["id"])
+                if transcript:
+                    summary = summarize_transcript(transcript)
+                    if summary:
+                        quiz = generate_quiz_from_summary(summary)
+                        if quiz:
+                            st.session_state["quizzes"][video["id"]] = quiz
+                            st.success(f"Quiz generated for {video['title']}")
+                        else:
+                            st.error("Failed to generate quiz questions.")
                     else:
-                        st.error("Failed to generate quiz questions.")
+                        st.error("Failed to summarize the transcript.")
                 else:
-                    st.error("Failed to summarize the transcript.")
-            else:
-                st.warning("Transcript not available for this video.")
+                    st.warning("Transcript not available for this video.")
