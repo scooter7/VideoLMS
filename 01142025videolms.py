@@ -111,23 +111,49 @@ def fetch_transcript(video_id: str):
         st.error(f"Error fetching transcript: {e}")
         return None
 
-def transcribe_with_whisper(audio_file_path: str) -> str:
+def transcribe_with_whisper(video_url: str) -> str:
     """
-    Transcribes audio using OpenAI's Whisper model.
+    Downloads the audio from a YouTube video and transcribes it using OpenAI's Whisper model.
     Args:
-        audio_file_path (str): Path to the audio file.
+        video_url (str): The URL of the YouTube video.
     Returns:
-        str: The transcribed text.
+        str: The transcribed text, or an error message if the transcription fails.
     """
     try:
-        with open(audio_file_path, "rb") as audio_file:
-            response = openai.Audio.transcribe(
+        # Download audio from YouTube
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'outtmpl': 'temp_audio.%(ext)s',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([video_url])
+
+        # Transcribe audio using OpenAI Whisper
+        transcript = None
+        with open("temp_audio.mp3", "rb") as audio_file:
+            response = openai.Audio.transcriptions.create(
                 file=audio_file,
                 model="whisper-1"
             )
-        return response.get("text", "No transcription available.")
+            transcript = response.get("text", None)
+
+        # Clean up the temporary file
+        if os.path.exists("temp_audio.mp3"):
+            os.remove("temp_audio.mp3")
+
+        if transcript:
+            return transcript
+        else:
+            return "Failed to retrieve transcription from Whisper."
     except Exception as e:
-        return f"Failed to transcribe audio: {e}"
+        if os.path.exists("temp_audio.mp3"):
+            os.remove("temp_audio.mp3")
+        return f"Failed to transcribe video using Whisper: {str(e)}"
             
 def summarize_transcript(transcript):
     if not transcript:
@@ -284,17 +310,18 @@ if st.session_state["confirmed_videos"]:
     st.write("### Confirmed Videos")
     for idx, video in enumerate(st.session_state["confirmed_videos"]):
         st.video(video["url"])
+        
         if st.button(f"I watched this! Quiz me! ({video['title']})", key=f"quiz_{video['id']}_{idx}"):
-            # Try fetching transcript
+            # Attempt to fetch the transcript using YouTubeTranscriptApi
             transcript = fetch_transcript(video["id"])
             
-            # Use Whisper if no transcript available
+            # Use Whisper if no transcript is available
             if not transcript:
                 st.info("Fetching transcript using Whisper...")
                 transcript = transcribe_with_whisper(video["url"])
             
-            # Generate quiz if transcript is available
-            if transcript:
+            # Proceed if a transcript is available
+            if transcript and "Failed" not in transcript:
                 summary = summarize_transcript(transcript)
                 if summary:
                     quiz = generate_quiz_from_summary(summary)
@@ -306,7 +333,7 @@ if st.session_state["confirmed_videos"]:
                 else:
                     st.error("Failed to summarize the transcript.")
             else:
-                st.error("Failed to fetch or generate a transcript.")
+                st.error(f"Failed to fetch or generate a transcript: {transcript}")
 
 # Display generated quizzes
 if st.session_state["quizzes"]:
