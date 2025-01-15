@@ -112,16 +112,10 @@ def fetch_transcript(video_id: str):
         st.error(f"Error fetching transcript: {e}")
         return None
 
-def transcribe_with_whisper(video_url: str) -> str:
-    """
-    Downloads audio from a YouTube video and transcribes it using OpenAI's Whisper model.
-    Args:
-        video_url (str): The URL of the YouTube video.
-    Returns:
-        str: The transcribed text, or an error message if the transcription fails.
-    """
+# Function to download video and transcribe using Whisper
+def transcribe_with_whisper(video_url: str):
     try:
-        # Download audio from YouTube
+        # Download the audio from YouTube
         ydl_opts = {
             'format': 'bestaudio/best',
             'outtmpl': 'temp_audio.%(ext)s',
@@ -134,26 +128,25 @@ def transcribe_with_whisper(video_url: str) -> str:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([video_url])
 
-        # Transcribe audio using Whisper
-        transcript = None
+        # Transcribe the audio using Whisper
         with open("temp_audio.mp3", "rb") as audio_file:
-            transcript_response = openai.Audio.transcribe(
+            response = openai.Audio.transcriptions.create(
                 model="whisper-1",
                 file=audio_file
             )
-            transcript = transcript_response.get("text")
+            transcript = response.get("text")
 
-        # Clean up temporary audio file
-        if os.path.exists("temp_audio.mp3"):
-            os.remove("temp_audio.mp3")
+        # Cleanup temporary file
+        os.remove("temp_audio.mp3")
 
-        return transcript if transcript else "Failed to retrieve transcription from Whisper."
+        return transcript if transcript else None
 
     except Exception as e:
-        # Cleanup in case of an error
+        # Cleanup in case of error
         if os.path.exists("temp_audio.mp3"):
             os.remove("temp_audio.mp3")
-        return f"Failed to transcribe video using Whisper: {e}"
+        st.error(f"Failed to transcribe video using Whisper: {e}")
+        return None
             
 def summarize_transcript(transcript):
     if not transcript:
