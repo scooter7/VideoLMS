@@ -115,6 +115,7 @@ def generate_quiz(summary):
 # Streamlit App
 st.title("AI Video Quiz Generator")
 
+# Login / Registration Workflow
 if "username" not in st.session_state:
     st.sidebar.title("Login / Register")
     option = st.sidebar.radio("Choose an option", ["Login", "Register"])
@@ -126,6 +127,7 @@ if "username" not in st.session_state:
             if role:
                 st.session_state["username"] = username
                 st.session_state["role"] = role
+                st.session_state["view_as_user"] = False  # Admin starts in admin view
                 st.sidebar.success(f"Welcome, {username}!")
             else:
                 st.sidebar.error("Invalid credentials.")
@@ -135,28 +137,64 @@ if "username" not in st.session_state:
         if st.sidebar.button("Register"):
             save_user(new_username, new_password)
 else:
-    st.sidebar.write(f"Logged in as: {st.session_state['username']}")
+    st.sidebar.write(f"Logged in as: {st.session_state['username']} ({st.session_state['role']})")
     if st.sidebar.button("Logout"):
         del st.session_state["username"]
         del st.session_state["role"]
+        del st.session_state["view_as_user"]
         st.experimental_rerun()
 
-# Admin and User Features
-if "username" in st.session_state:
-    if st.session_state["role"] == "admin":
-        st.write("### Admin Dashboard")
+# Admin Features
+if "username" in st.session_state and st.session_state["role"] == "admin":
+    st.write("### Admin Dashboard")
+
+    # Toggle to view user features
+    st.session_state["view_as_user"] = st.checkbox("View as User", value=st.session_state["view_as_user"])
+
+    if not st.session_state["view_as_user"]:
+        # Admin Features
         st.write("**All Users**")
         st.dataframe(load_users())
         st.write("**Quiz Scores**")
         st.dataframe(load_scores())
     else:
+        # Switch to User Features
+        st.write("### User Features")
+
+        # Topic Selection
         topic = st.selectbox("Select a Topic", ["AI in Manufacturing", "AI in Healthcare", "AI in Insurance"])
         if topic:
+            # Search Videos for Selected Topic
             videos = search_youtube_videos(topic)
             selected_video = st.radio("Select a Video", videos, format_func=lambda x: x["title"])
+            
+            # Display Video and Generate Quiz
             st.video(f"https://www.youtube.com/watch?v={selected_video['id']}")
             transcript = "Dummy transcript for the video."
             summary = summarize_transcript(transcript)
             quiz = generate_quiz(summary)
+
             st.write("**Quiz Questions:**")
-            st.write(quiz)
+            for i, question in enumerate(quiz.split("\n\n")):
+                st.write(f"**Question {i+1}:** {question}")
+
+# User Features
+if "username" in st.session_state and st.session_state["role"] == "user":
+    st.write("### User Features")
+
+    # Topic Selection
+    topic = st.selectbox("Select a Topic", ["AI in Manufacturing", "AI in Healthcare", "AI in Insurance"])
+    if topic:
+        # Search Videos for Selected Topic
+        videos = search_youtube_videos(topic)
+        selected_video = st.radio("Select a Video", videos, format_func=lambda x: x["title"])
+
+        # Display Video and Generate Quiz
+        st.video(f"https://www.youtube.com/watch?v={selected_video['id']}")
+        transcript = "Dummy transcript for the video."
+        summary = summarize_transcript(transcript)
+        quiz = generate_quiz(summary)
+
+        st.write("**Quiz Questions:**")
+        for i, question in enumerate(quiz.split("\n\n")):
+            st.write(f"**Question {i+1}:** {question}")
