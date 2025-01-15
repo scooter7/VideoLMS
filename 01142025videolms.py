@@ -112,6 +112,13 @@ def generate_quiz(summary):
     response = openai.ChatCompletion.create(model="gpt-4", messages=[{"role": "user", "content": prompt}])
     return response.choices[0].message.content.strip()
 
+# Ensure session state variables are initialized
+if "view_as_user" not in st.session_state:
+    st.session_state["view_as_user"] = False
+
+if "selected_videos" not in st.session_state:
+    st.session_state["selected_videos"] = []
+
 # Streamlit App
 st.title("AI Video Quiz Generator")
 
@@ -127,7 +134,6 @@ if "username" not in st.session_state:
             if role:
                 st.session_state["username"] = username
                 st.session_state["role"] = role
-                st.session_state["view_as_user"] = False  # Admin starts in admin view
                 st.sidebar.success(f"Welcome, {username}!")
             else:
                 st.sidebar.error("Invalid credentials.")
