@@ -115,24 +115,36 @@ def fetch_transcript(video_id: str):
 # Function to download video and transcribe using Whisper
 def transcribe_with_whisper(video_url: str):
     import tempfile
+    import os
 
     try:
-        # Temporary directory to save audio
+        # Create a temporary directory
         with tempfile.TemporaryDirectory() as temp_dir:
-            audio_path = f"{temp_dir}/audio.mp3"
+            audio_path = os.path.join(temp_dir, "audio.mp3")
 
-            # Download the audio from YouTube
+            # yt-dlp options for downloading audio
             ydl_opts = {
                 'format': 'bestaudio/best',
-                'outtmpl': audio_path,
+                'outtmpl': os.path.join(temp_dir, '%(title)s.%(ext)s'),
                 'postprocessors': [{
                     'key': 'FFmpegExtractAudio',
                     'preferredcodec': 'mp3',
                     'preferredquality': '192',
                 }],
             }
+
+            # Download audio from YouTube
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([video_url])
+
+            # Verify the audio file exists
+            downloaded_files = os.listdir(temp_dir)
+            for file in downloaded_files:
+                if file.endswith(".mp3"):
+                    audio_path = os.path.join(temp_dir, file)
+                    break
+            else:
+                raise FileNotFoundError("No audio file was created during download.")
 
             # Transcribe the audio using Whisper
             with open(audio_path, "rb") as audio_file:
