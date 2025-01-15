@@ -270,14 +270,19 @@ if st.session_state["confirmed_videos"]:
             else:
                 st.warning(error)
 
-    # Display generated quizzes
-    for video_id, quiz in st.session_state["quizzes"].items():
+# Display generated quizzes
+for video_id, quiz in st.session_state["quizzes"].items():
     st.write(f"#### Quiz for Video ID: {video_id}")
     for q_idx, q in enumerate(quiz):
         st.write(f"**Question:** {q['question']}")
         user_answer = st.radio(
             f"Select your answer for Question {q_idx + 1}:",
-            options=[f"A) {q['options'][0]}", f"B) {q['options'][1]}", f"C) {q['options'][2]}", f"D) {q['options'][3]}"],
+            options=[
+                f"A) {q['options'][0]}",
+                f"B) {q['options'][1]}",
+                f"C) {q['options'][2]}",
+                f"D) {q['options'][3]}"
+            ],
             key=f"{video_id}_q{q_idx}_radio"
         )
         if st.button(f"Submit Answer for Question {q_idx + 1}", key=f"{video_id}_submit_q{q_idx}"):
