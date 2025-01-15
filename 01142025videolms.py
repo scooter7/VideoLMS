@@ -85,37 +85,29 @@ def authenticate(username, password):
     user = users[(users["username"] == username) & (users["password"] == password)]
     return "user" if not user.empty else None
 
-# YouTube Search Functionality
-def search_youtube_videos(topic, max_results=10):
-    youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
-    search_response = youtube.search().list(
-        q=topic,
-        part="snippet",
-        type="video",
-        maxResults=max_results,
-        order="viewCount",
-        publishedAfter="2024-01-01T00:00:00Z"
-    ).execute()
-    return [
-        {"id": item["id"]["videoId"], "title": item["snippet"]["title"]}
-        for item in search_response["items"]
-    ]
+# YouTube Transcript Fetcher
+def fetch_youtube_transcript(video_id):
+    return f"This is a dummy transcript for video ID: {video_id}."
 
 # Transcript Summarization and Quiz Generation
 def summarize_transcript(transcript):
     prompt = f"Summarize the following transcript:\n\n{transcript}"
-    response = openai.chat.completions.create(model="gpt-4o", messages=[{"role": "user", "content": prompt}])
-    return response.choices[0].message.content.strip()
+    try:
+        response = openai.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        st.error(f"Error summarizing transcript: {e}")
+        return None
 
 def parse_questions_from_response(response_text):
-    """
-    Parse OpenAI response text to extract questions, options, and correct answers.
-    """
     questions = []
     question_blocks = response_text.split("---")
     for block in question_blocks:
         lines = block.strip().split("\n")
-        if len(lines) >= 6:  # Ensure enough lines for question, options, and answer
+        if len(lines) >= 6:
             question = {
                 "question": lines[0].replace("Question:", "").strip(),
                 "options": [
@@ -130,9 +122,6 @@ def parse_questions_from_response(response_text):
     return questions
 
 def generate_quiz_from_summary(summary):
-    """
-    Generate a 5-question multiple-choice quiz from a summary.
-    """
     prompt = f"""
     Based on the following summary, create a 5-question multiple-choice quiz.
     Each question should include 4 options, one of which is correct.
@@ -152,33 +141,16 @@ def generate_quiz_from_summary(summary):
     try:
         response = openai.chat.completions.create(
             model="gpt-4o",
-            messages=[{"role": "user", "content": prompt}],
+            messages=[{"role": "user", "content": prompt}]
         )
         if response.choices and response.choices[0].message.content:
             response_text = response.choices[0].message.content.strip()
-            questions = parse_questions_from_response(response_text)
-            return questions
+            return parse_questions_from_response(response_text)
     except Exception as e:
         st.error(f"Error generating quiz: {e}")
-    return []
+        return []
 
-# Ensure session state variables are initialized
-if "view_as_user" not in st.session_state:
-    st.session_state["view_as_user"] = False
-
-if "selected_videos" not in st.session_state:
-    st.session_state["selected_videos"] = []
-
-if "quizzes" not in st.session_state:
-    st.session_state["quizzes"] = {}
-
-if "quiz_scores" not in st.session_state:
-    st.session_state["quiz_scores"] = {}
-
-# Streamlit App
-st.title("AI Video Quiz Generator")
-
-# Login / Registration Workflow
+# Streamlit App Logic
 if "username" not in st.session_state:
     st.sidebar.title("Login / Register")
     option = st.sidebar.radio("Choose an option", ["Login", "Register"])
@@ -203,72 +175,27 @@ else:
     if st.sidebar.button("Logout"):
         del st.session_state["username"]
         del st.session_state["role"]
-        del st.session_state["view_as_user"]
         st.experimental_rerun()
 
-# Admin Features
-if "username" in st.session_state and st.session_state["role"] == "admin":
-    st.write("### Admin Dashboard")
-
-    # Toggle to view user features
-    st.session_state["view_as_user"] = st.checkbox("View as User", value=st.session_state["view_as_user"])
-
-    if not st.session_state["view_as_user"]:
-        # Admin Features
-        st.write("**All Users**")
-        st.dataframe(load_users())
-        st.write("**Quiz Scores**")
-        st.dataframe(load_scores())
-    else:
-        st.write("### User Features")
-
-# User Features
+# Display Videos and Quizzes
 if "username" in st.session_state:
+    st.title("AI Video Quiz Generator")
     topic = st.selectbox("Select a Topic", ["AI in Manufacturing", "AI in Healthcare", "AI in Insurance"])
     if topic:
-        # Search Videos for Selected Topic
-        videos = search_youtube_videos(topic)
-        st.write(f"### Videos for {topic}")
+        videos = [{"id": f"video{i}", "title": f"Video {i} for {topic}"} for i in range(1, 6)]
         for video in videos:
             st.video(f"https://www.youtube.com/watch?v={video['id']}")
             if st.button(f"I watched this! Quiz me! ({video['title']})", key=f"quiz_{video['id']}"):
-                transcript = f"Transcript for video {video['id']}"  # Placeholder for actual transcript ingestion
+                transcript = fetch_youtube_transcript(video["id"])
                 summary = summarize_transcript(transcript)
                 quiz = generate_quiz_from_summary(summary)
-
-                # Save quiz in session state
-                st.session_state["quizzes"][video["id"]] = {
-                    "title": video["title"],
-                    "questions": quiz,
-                    "answers": [None] * 5,  # Placeholder for user answers
-                    "correct_answers": [q["answer"] for q in quiz]
+                st.session_state["quizzes"] = {
+                    video["id"]: {"questions": quiz}
                 }
 
-    # Display Quizzes
-    if st.session_state["quizzes"]:
-        st.write("### Take Your Quizzes")
+    if st.session_state.get("quizzes"):
         for video_id, quiz_data in st.session_state["quizzes"].items():
-            st.write(f"#### Quiz for {quiz_data['title']}")
-            total_correct = 0
-            for i, question in enumerate(quiz_data["questions"]):
-                st.write(f"**Question {i + 1}:** {question['question']}")
-                user_answer = st.radio(
-                    f"Select your answer for Question {i + 1}:",
-                    options=question["options"],
-                    key=f"answer_{video_id}_{i}"
-                )
-                quiz_data["answers"][i] = user_answer
-
-                # Submit button for each quiz
-            if st.button(f"Submit Quiz ({quiz_data['title']})", key=f"submit_{video_id}"):
-                for i, correct_answer in enumerate(quiz_data["correct_answers"]):
-                    if quiz_data["answers"][i] == correct_answer:
-                        total_correct += 1
-                        st.success(f"Question {i + 1}: Correct!")
-                    else:
-                        st.error(f"Question {i + 1}: Incorrect. Correct answer: {correct_answer}")
-                st.write(f"Your Score: {total_correct} / 5")
-
-                # Save score to session state and GitHub
-                st.session_state["quiz_scores"][video_id] = total_correct
-                save_score(st.session_state["username"], video_id, total_correct)
+            st.write(f"### Quiz for {video_id}")
+            for q in quiz_data["questions"]:
+                st.write(q["question"])
+                st.radio("Options", q["options"], key=f"{video_id}_{q['question']}")
