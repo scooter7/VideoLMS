@@ -1,5 +1,8 @@
 import streamlit as st
 import pandas as pd
+import requests
+import json
+import base64
 import openai
 import re
 from googleapiclient.discovery import build
@@ -8,33 +11,79 @@ from googleapiclient.discovery import build
 openai.api_key = st.secrets["openai"]["api_key"]
 YOUTUBE_API_KEY = st.secrets["youtube"]["api_key"]
 
-# GitHub File URLs
-USERS_FILE_URL = "https://raw.githubusercontent.com/myusername/VideoLMS/main/UsersandScores/users.csv"
-SCORES_FILE_URL = "https://raw.githubusercontent.com/myusername/VideoLMS/main/UsersandScores/scores.csv"
+# GitHub Configurations
+GITHUB_API_URL = "https://api.github.com"
+REPO_OWNER = st.secrets["github"]["username"]
+REPO_NAME = "VideoLMS"
+USER_DATA_FILE_PATH = "UsersandScores/users.csv"
+SCORES_DATA_FILE_PATH = "UsersandScores/scores.csv"
+GITHUB_TOKEN = st.secrets["github"]["token"]
 
-# Authenticate User
+# GitHub Helper Functions
+def get_file_sha(file_path):
+    url = f"{GITHUB_API_URL}/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_path}"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return response.json().get("sha", None)
+    return None
+
+def upload_file_to_github(file_path, content, message):
+    url = f"{GITHUB_API_URL}/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_path}"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}", "Content-Type": "application/json"}
+    sha = get_file_sha(file_path)
+    data = {
+        "message": message,
+        "content": base64.b64encode(content.encode("utf-8")).decode("utf-8"),
+        "branch": "main"
+    }
+    if sha:
+        data["sha"] = sha
+
+    response = requests.put(url, headers=headers, data=json.dumps(data))
+    if response.status_code not in [200, 201]:
+        st.error(f"Failed to update {file_path} in GitHub: {response.text}")
+
+# User Management
+def load_users():
+    url = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/main/{USER_DATA_FILE_PATH}"
+    try:
+        return pd.read_csv(url)
+    except Exception as e:
+        st.warning(f"Could not load users. Creating a new file: {e}")
+        return pd.DataFrame(columns=["username", "password"])
+
+def save_user(username, password):
+    users = load_users()
+    if username in users["username"].values:
+        st.warning("Username already exists. Choose another username.")
+        return
+    new_user = pd.DataFrame({"username": [username], "password": [password]})
+    users = pd.concat([users, new_user], ignore_index=True)
+    upload_file_to_github(USER_DATA_FILE_PATH, users.to_csv(index=False), "Add new user")
+
+# Quiz Score Management
+def load_scores():
+    url = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/main/{SCORES_DATA_FILE_PATH}"
+    try:
+        return pd.read_csv(url)
+    except Exception as e:
+        st.warning(f"Could not load scores. Creating a new file: {e}")
+        return pd.DataFrame(columns=["username", "video_id", "score"])
+
+def save_score(username, video_id, score):
+    scores = load_scores()
+    new_score = pd.DataFrame({"username": [username], "video_id": [video_id], "score": [score]})
+    scores = pd.concat([scores, new_score], ignore_index=True)
+    upload_file_to_github(SCORES_DATA_FILE_PATH, scores.to_csv(index=False), "Add new score")
+
+# Authentication
 def authenticate(username, password):
     if username == "james@shmooze.io" and password == "Conversations7!":
         return "admin"
     users = load_users()
     user = users[(users["username"] == username) & (users["password"] == password)]
     return "user" if not user.empty else None
-
-# Load users from GitHub
-def load_users():
-    try:
-        return pd.read_csv(USERS_FILE_URL)
-    except Exception as e:
-        st.warning(f"Could not load users. Creating a new file: {e}")
-        return pd.DataFrame(columns=["username", "password"])
-
-# Load quiz scores from GitHub
-def load_scores():
-    try:
-        return pd.read_csv(SCORES_FILE_URL)
-    except Exception as e:
-        st.warning(f"Could not load scores. Creating a new file: {e}")
-        return pd.DataFrame(columns=["username", "video_id", "score"])
 
 # YouTube Search Functionality
 def search_youtube_videos(topic, max_results=10):
@@ -47,121 +96,67 @@ def search_youtube_videos(topic, max_results=10):
         order="viewCount",
         publishedAfter="2024-01-01T00:00:00Z"
     ).execute()
-
-    video_ids = [item["id"]["videoId"] for item in search_response["items"]]
-    video_details = youtube.videos().list(
-        id=",".join(video_ids),
-        part="snippet,contentDetails,statistics"
-    ).execute()
-
-    filtered_videos = []
-    for video in video_details["items"]:
-        duration = video["contentDetails"]["duration"]
-        minutes = parse_iso_duration(duration)
-        if minutes >= 10:
-            filtered_videos.append({
-                "id": video["id"],
-                "title": video["snippet"]["title"],
-                "url": f"https://www.youtube.com/watch?v={video['id']}",
-                "views": int(video["statistics"].get("viewCount", 0)),
-                "likes": int(video["statistics"].get("likeCount", 0)),
-                "comments": int(video["statistics"].get("commentCount", 0))
-            })
-
-    return sorted(filtered_videos, key=lambda x: (-x["views"], -x["likes"], -x["comments"]))
-
-def parse_iso_duration(duration):
-    match = re.match(r"PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?", duration)
-    hours = int(match.group(1)) if match.group(1) else 0
-    minutes = int(match.group(2)) if match.group(2) else 0
-    return hours * 60 + minutes
+    return [
+        {"id": item["id"]["videoId"], "title": item["snippet"]["title"]}
+        for item in search_response["items"]
+    ]
 
 # Transcript Summarization and Quiz Generation
 def summarize_transcript(transcript):
     prompt = f"Summarize the following transcript:\n\n{transcript}"
-    response = openai.chat.completions.create(
-        model="gpt-4",
-        messages=[{"role": "user", "content": prompt}]
-    )
+    response = openai.ChatCompletion.create(model="gpt-4", messages=[{"role": "user", "content": prompt}])
     return response.choices[0].message.content.strip()
 
-def generate_quiz_from_summary(summary):
-    prompt = f"Generate five quiz questions based on the following summary:\n\n{summary}"
-    response = openai.chat.completions.create(
-        model="gpt-4",
-        messages=[{"role": "user", "content": prompt}]
-    )
+def generate_quiz(summary):
+    prompt = f"Generate five multiple-choice questions from this summary:\n\n{summary}"
+    response = openai.ChatCompletion.create(model="gpt-4", messages=[{"role": "user", "content": prompt}])
     return response.choices[0].message.content.strip()
 
 # Streamlit App
 st.title("AI Video Quiz Generator")
 
-# Login and Session Management
 if "username" not in st.session_state:
-    st.sidebar.title("Login")
-    username = st.sidebar.text_input("Username")
-    password = st.sidebar.text_input("Password", type="password")
-
-    if st.sidebar.button("Login"):
-        role = authenticate(username, password)
-        if role:
-            st.session_state["username"] = username
-            st.session_state["role"] = role
-            st.sidebar.success(f"Welcome, {username}!")
-        else:
-            st.sidebar.error("Invalid credentials.")
+    st.sidebar.title("Login / Register")
+    option = st.sidebar.radio("Choose an option", ["Login", "Register"])
+    if option == "Login":
+        username = st.sidebar.text_input("Username")
+        password = st.sidebar.text_input("Password", type="password")
+        if st.sidebar.button("Login"):
+            role = authenticate(username, password)
+            if role:
+                st.session_state["username"] = username
+                st.session_state["role"] = role
+                st.sidebar.success(f"Welcome, {username}!")
+            else:
+                st.sidebar.error("Invalid credentials.")
+    elif option == "Register":
+        new_username = st.sidebar.text_input("Create a Username")
+        new_password = st.sidebar.text_input("Create a Password", type="password")
+        if st.sidebar.button("Register"):
+            save_user(new_username, new_password)
 else:
-    st.sidebar.write(f"Logged in as {st.session_state['username']} ({st.session_state['role']})")
+    st.sidebar.write(f"Logged in as: {st.session_state['username']}")
     if st.sidebar.button("Logout"):
         del st.session_state["username"]
         del st.session_state["role"]
         st.experimental_rerun()
 
-# Admin Features
-if "role" in st.session_state and st.session_state["role"] == "admin":
-    st.sidebar.title("Admin Panel")
-    st.write("### Admin Features")
-    
-    # View all users
-    st.write("#### All Users")
-    st.dataframe(load_users())
-    
-    # View quiz scores
-    st.write("#### Quiz Scores")
-    st.dataframe(load_scores())
-
-    # Toggle for switching to user view
-    if st.sidebar.checkbox("Switch to User Features"):
-        st.sidebar.title("Choose a Topic")
-        topic = st.sidebar.radio("Select a Topic", ["AI in Manufacturing", "AI in Healthcare", "AI in Insurance"])
-
+# Admin and User Features
+if "username" in st.session_state:
+    if st.session_state["role"] == "admin":
+        st.write("### Admin Dashboard")
+        st.write("**All Users**")
+        st.dataframe(load_users())
+        st.write("**Quiz Scores**")
+        st.dataframe(load_scores())
+    else:
+        topic = st.selectbox("Select a Topic", ["AI in Manufacturing", "AI in Healthcare", "AI in Insurance"])
         if topic:
-            st.write(f"### Videos for {topic}")
-            with st.spinner("Searching for top videos..."):
-                videos = search_youtube_videos(topic)
-
-            if videos:
-                selected_video_ids = []
-                for video in videos:
-                    st.video(video["url"])
-                    is_selected = st.checkbox(
-                        f"Select: {video['title']} (Views: {video['views']}, Likes: {video['likes']}, Comments: {video['comments']})",
-                        key=f"checkbox_{video['id']}"
-                    )
-                    if is_selected:
-                        selected_video_ids.append(video["id"])
-
-                if st.button("Confirm Selection"):
-                    st.session_state["selected_videos"] = [video for video in videos if video["id"] in selected_video_ids]
-                    st.success("Videos selected!")
-
-            if "selected_videos" in st.session_state:
-                st.write("### Selected Videos")
-                for video in st.session_state["selected_videos"]:
-                    st.video(video["url"])
-                    if st.button(f"I watched this video: {video['title']}", key=f"watched_{video['id']}"):
-                        transcript = f"Dummy transcript for video {video['id']}."
-                        summary = summarize_transcript(transcript)
-                        quiz = generate_quiz_from_summary(summary)
-                        st.write(f"**Quiz for {video['title']}**")
-                        st.write(quiz)
+            videos = search_youtube_videos(topic)
+            selected_video = st.radio("Select a Video", videos, format_func=lambda x: x["title"])
+            st.video(f"https://www.youtube.com/watch?v={selected_video['id']}")
+            transcript = "Dummy transcript for the video."
+            summary = summarize_transcript(transcript)
+            quiz = generate_quiz(summary)
+            st.write("**Quiz Questions:**")
+            st.write(quiz)
