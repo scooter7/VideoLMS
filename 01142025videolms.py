@@ -23,6 +23,8 @@ if "role" not in st.session_state:
     st.session_state["role"] = None
 if "selected_videos" not in st.session_state:
     st.session_state["selected_videos"] = []
+if "confirmed_videos" not in st.session_state:
+    st.session_state["confirmed_videos"] = []
 if "quizzes" not in st.session_state:
     st.session_state["quizzes"] = {}
 if "quiz_scores" not in st.session_state:
@@ -30,7 +32,7 @@ if "quiz_scores" not in st.session_state:
 if "view_as_user" not in st.session_state:
     st.session_state["view_as_user"] = False
 
-# Helper Functions for GitHub
+# Helper Functions
 def get_file_sha(file_path):
     url = f"{GITHUB_API_URL}/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_path}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
@@ -50,12 +52,10 @@ def upload_file_to_github(file_path, content, message):
     }
     if sha:
         data["sha"] = sha
-
     response = requests.put(url, headers=headers, data=json.dumps(data))
     if response.status_code not in [200, 201]:
         st.error(f"Failed to update {file_path} in GitHub: {response.text}")
 
-# User Management
 def load_users():
     url = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/main/{USER_DATA_FILE_PATH}"
     try:
@@ -73,15 +73,13 @@ def save_user(username, password):
     users = pd.concat([users, new_user], ignore_index=True)
     upload_file_to_github(USER_DATA_FILE_PATH, users.to_csv(index=False), "Add new user")
 
-# Authentication
 def authenticate(username, password):
-    if username == "james@shmooze.io" and password == "Conversations7!":
+    if username == "admin@admin.com" and password == "admin123":
         return "admin"
     users = load_users()
     user = users[(users["username"] == username) & (users["password"] == password)]
     return "user" if not user.empty else None
 
-# YouTube Helper Functions
 def search_youtube_videos(topic, max_results=10):
     youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
     search_response = youtube.search().list(
@@ -116,10 +114,9 @@ def search_youtube_videos(topic, max_results=10):
 
     return sorted(videos, key=lambda x: (-x["views"], -x["likes"], -x["comments"]))
 
-# Transcript and Quiz Generation
 def fetch_video_transcript(video_id):
-    # Placeholder for actual transcript fetching
-    return f"Placeholder transcript for video {video_id}."
+    # Placeholder for transcript fetching logic
+    return f"Transcript for video {video_id}."
 
 def summarize_transcript(transcript):
     prompt = f"Summarize the following transcript:\n\n{transcript}"
@@ -208,21 +205,21 @@ else:
         del st.session_state["view_as_user"]
         st.experimental_rerun()
 
+# Admin Area
 if st.session_state["role"] == "admin" and not st.session_state["view_as_user"]:
     st.write("### Admin Dashboard")
     st.checkbox("View as User", key="view_as_user")
     st.write("**All Users**")
     st.dataframe(load_users())
 
-# User Features
+# User Area
 if st.session_state["username"]:
     topic = st.selectbox("Select a Topic", ["AI in Manufacturing", "AI in Healthcare", "AI in Insurance"])
     if topic:
-        with st.spinner("Fetching videos..."):
-            videos = search_youtube_videos(topic)
-
+        st.write("### Available Videos")
+        videos = search_youtube_videos(topic)
         for video in videos[:10]:
-            st.video(video["url"], format="YouTube")
+            st.video(video["url"])
             checked = st.checkbox(f"Select {video['title']}", key=f"select_{video['id']}")
             if checked:
                 st.session_state["selected_videos"].append(video)
@@ -231,7 +228,22 @@ if st.session_state["username"]:
                     v for v in st.session_state["selected_videos"] if v["id"] != video["id"]
                 ]
 
-        if st.session_state["selected_videos"]:
-            st.write("### Selected Videos")
-            for video in st.session_state["selected_videos"]:
-                st.write(f"- {video['title']} (Views: {video['views']}, Likes: {video['likes']})")
+        if st.button("Confirm Selected Videos"):
+            st.session_state["confirmed_videos"] = st.session_state["selected_videos"]
+
+        st.write("### Confirmed Videos")
+        for video in st.session_state["confirmed_videos"]:
+            st.video(video["url"])
+            if st.button(f"I watched this! Quiz me! ({video['title']})", key=f"quiz_{video['id']}"):
+                transcript = fetch_video_transcript(video["id"])
+                summary = summarize_transcript(transcript)
+                quiz = generate_quiz_from_summary(summary)
+                st.session_state["quizzes"][video["id"]] = quiz
+
+        if st.session_state["quizzes"]:
+            st.write("### Take Quizzes")
+            for video_id, quiz in st.session_state["quizzes"].items():
+                st.write(f"#### Quiz for Video ID {video_id}")
+                for question in quiz:
+                    st.write(f"**{question['question']}**")
+                    st.radio("Choose your answer:", question["options"], key=f"answer_{video_id}_{question['question']}")
