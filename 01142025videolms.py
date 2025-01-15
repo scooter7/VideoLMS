@@ -122,6 +122,7 @@ def transcribe_with_whisper(video_url: str):
                 'preferredcodec': 'mp3',
                 'preferredquality': '192',
             }],
+            'ffmpeg_location': '/usr/bin/ffmpeg',  # Explicitly specify the ffmpeg path
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([video_url])
@@ -139,7 +140,7 @@ def transcribe_with_whisper(video_url: str):
         import os
         if os.path.exists("temp_audio.mp3"):
             os.remove("temp_audio.mp3")
-
+            
 def summarize_transcript(transcript):
     if not transcript:
         return None
