@@ -3,7 +3,7 @@ import pandas as pd
 import requests
 import openai
 from googleapiclient.discovery import build
-from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, VideoUnavailable
+from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, VideoUnavailable, TranscriptsDisabled
 import base64
 import json
 
@@ -96,16 +96,18 @@ def fetch_transcript(video_id: str):
     """Fetches transcript using YouTubeTranscriptApi."""
     try:
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
-        transcript_text = " ".join([entry['text'] for entry in transcript])
-        return transcript_text
+        return " ".join([entry['text'] for entry in transcript])
     except TranscriptsDisabled:
         st.warning("Transcripts are disabled for this video.")
         return None
     except NoTranscriptFound:
         st.warning("No transcript found for this video.")
         return None
+    except VideoUnavailable:
+        st.warning("Video is unavailable or restricted.")
+        return None
     except Exception as e:
-        st.error(f"Failed to fetch transcript: {e}")
+        st.error(f"Error fetching transcript: {e}")
         return None
 
 def transcribe_with_whisper(video_url: str):
