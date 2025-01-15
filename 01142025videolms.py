@@ -215,12 +215,15 @@ if st.session_state["role"] == "admin" and not st.session_state["view_as_user"]:
 # User Area
 if st.session_state["username"]:
     topic = st.selectbox("Select a Topic", ["AI in Manufacturing", "AI in Healthcare", "AI in Insurance"])
+    
     if topic:
         st.write("### Available Videos")
         videos = search_youtube_videos(topic)
+        
         for video in videos[:10]:
             st.video(video["url"])
             checked = st.checkbox(f"Select {video['title']}", key=f"select_{video['id']}")
+            
             if checked:
                 st.session_state["selected_videos"].append(video)
             else:
@@ -232,18 +235,30 @@ if st.session_state["username"]:
             st.session_state["confirmed_videos"] = st.session_state["selected_videos"]
 
         st.write("### Confirmed Videos")
-        for video in st.session_state["confirmed_videos"]:
+        
+        for idx, video in enumerate(st.session_state["confirmed_videos"]):  # Use index for uniqueness
             st.video(video["url"])
-            if st.button(f"I watched this! Quiz me! ({video['title']})", key=f"quiz_{video['id']}"):
+    
+            # Ensure the key is unique by including the index
+            if st.button(f"I watched this! Quiz me! ({video['title']})", key=f"quiz_{video['id']}_{idx}"):
                 transcript = fetch_video_transcript(video["id"])
                 summary = summarize_transcript(transcript)
                 quiz = generate_quiz_from_summary(summary)
+                
+                # Save the quiz to session state
                 st.session_state["quizzes"][video["id"]] = quiz
+                st.success(f"Quiz generated for {video['title']}")
 
         if st.session_state["quizzes"]:
             st.write("### Take Quizzes")
+            
             for video_id, quiz in st.session_state["quizzes"].items():
                 st.write(f"#### Quiz for Video ID {video_id}")
+                
                 for question in quiz:
                     st.write(f"**{question['question']}**")
-                    st.radio("Choose your answer:", question["options"], key=f"answer_{video_id}_{question['question']}")
+                    st.radio(
+                        "Choose your answer:", 
+                        question["options"], 
+                        key=f"answer_{video_id}_{question['question']}"
+                    )
