@@ -273,8 +273,12 @@ if st.session_state["confirmed_videos"]:
 # Display generated quizzes
 for video_id, quiz in st.session_state["quizzes"].items():
     st.write(f"#### Quiz for Video ID: {video_id}")
+    
     for q_idx, q in enumerate(quiz):
+        # Display question
         st.write(f"**Question {q_idx + 1}:** {q['question']}")
+
+        # Display options with unique keys for each question
         user_answer = st.radio(
             f"Select your answer for Question {q_idx + 1}:",
             options=[
@@ -285,10 +289,11 @@ for video_id, quiz in st.session_state["quizzes"].items():
             ],
             key=f"{video_id}_q{q_idx}_radio"
         )
-        # Check answer
+
+        # Check answer when submitted
         if st.button(f"Submit Answer for Question {q_idx + 1}", key=f"{video_id}_submit_q{q_idx}"):
             correct_answer = q["answer"]
-            # Ensure answer validation compares only the letter (A, B, C, D)
+            # Compare the user's choice with the correct answer
             if user_answer.split(")")[0] == correct_answer.split(")")[0]:
                 st.success(f"Correct! The answer is {correct_answer}.")
             else:
