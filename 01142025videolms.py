@@ -104,12 +104,12 @@ def search_youtube_videos(topic, max_results=10):
 # Transcript Summarization and Quiz Generation
 def summarize_transcript(transcript):
     prompt = f"Summarize the following transcript:\n\n{transcript}"
-    response = openai.ChatCompletion.create(model="gpt-4", messages=[{"role": "user", "content": prompt}])
+    response = openai.chat.completions.create(model="gpt-4o", messages=[{"role": "user", "content": prompt}])
     return response.choices[0].message.content.strip()
 
 def generate_quiz(summary):
     prompt = f"Generate five multiple-choice questions from this summary:\n\n{summary}"
-    response = openai.ChatCompletion.create(model="gpt-4", messages=[{"role": "user", "content": prompt}])
+    response = openai.chat.completions.create(model="gpt-4o", messages=[{"role": "user", "content": prompt}])
     return response.choices[0].message.content.strip()
 
 # Ensure session state variables are initialized
