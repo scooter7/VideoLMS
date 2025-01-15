@@ -250,22 +250,35 @@ if st.session_state["username"]:
             st.session_state["confirmed_videos"] = st.session_state["selected_videos"]
 
     # Display confirmed videos and allow users to generate quizzes
-    if st.session_state["confirmed_videos"]:
-        st.write("### Confirmed Videos")
-        for idx, video in enumerate(st.session_state["confirmed_videos"]):  # Unique index for each button
-            st.video(video["url"])
-            if st.button(f"I watched this! Quiz me! ({video['title']})", key=f"quiz_{video['id']}_{idx}"):
-                transcript, error = fetch_transcript(video["id"])
-                if transcript:
-                    summary = summarize_transcript(transcript)
-                    if summary:
-                        quiz = generate_quiz_from_summary(summary)
-                        if quiz:
-                            st.session_state["quizzes"][video["id"]] = quiz
-                            st.success(f"Quiz generated for {video['title']}")
-                        else:
-                            st.error("Failed to generate quiz questions.")
+if st.session_state["confirmed_videos"]:
+    st.write("### Confirmed Videos")
+    for idx, video in enumerate(st.session_state["confirmed_videos"]):  # Unique index for each button
+        st.video(video["url"])
+        if st.button(f"I watched this! Quiz me! ({video['title']})", key=f"quiz_{video['id']}_{idx}"):
+            transcript, error = fetch_transcript(video["id"])
+            if transcript:
+                summary = summarize_transcript(transcript)
+                if summary:
+                    quiz = generate_quiz_from_summary(summary)
+                    if quiz:
+                        st.session_state["quizzes"][video["id"]] = quiz
+                        st.success(f"Quiz generated for {video['title']}")
                     else:
-                        st.error("Failed to summarize the transcript.")
+                        st.error("Failed to generate quiz questions.")
                 else:
-                    st.warning(error)
+                    st.error("Failed to summarize the transcript.")
+            else:
+                st.warning(error)
+
+    # Display generated quizzes
+    if st.session_state["quizzes"]:
+        st.write("### Your Quizzes")
+        for video_id, quiz in st.session_state["quizzes"].items():
+            st.write(f"#### Quiz for Video ID: {video_id}")
+            for q in quiz:
+                st.write(f"**Question:** {q['question']}")
+                st.write(f"A) {q['options'][0]}")
+                st.write(f"B) {q['options'][1]}")
+                st.write(f"C) {q['options'][2]}")
+                st.write(f"D) {q['options'][3]}")
+                st.write(f"**Correct Answer:** {q['answer']}")
