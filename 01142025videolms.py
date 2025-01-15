@@ -137,7 +137,7 @@ def transcribe_with_whisper(video_url: str) -> str:
         # Transcribe audio using OpenAI Whisper
         transcript = None
         with open("temp_audio.mp3", "rb") as audio_file:
-            response = openai.Audio.transcriptions.create(
+            response = openai.Audio.transcribe(
                 file=audio_file,
                 model="whisper-1"
             )
