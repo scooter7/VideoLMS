@@ -111,35 +111,23 @@ def fetch_transcript(video_id: str):
         st.error(f"Error fetching transcript: {e}")
         return None
 
-def transcribe_with_whisper(video_url: str):
-    """Transcribes video using Whisper."""
+def transcribe_with_whisper(audio_file_path: str) -> str:
+    """
+    Transcribes audio using OpenAI's Whisper model.
+    Args:
+        audio_file_path (str): Path to the audio file.
+    Returns:
+        str: The transcribed text.
+    """
     try:
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'outtmpl': 'temp_audio.%(ext)s',
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }],
-            'ffmpeg_location': '/usr/bin/ffmpeg',  # Explicitly specify the ffmpeg path
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([video_url])
-        
-        transcript = None
-        with open("temp_audio.mp3", "rb") as audio_file:
-            transcript = openai.Audio.transcribe("whisper-1", audio_file)
-        
-        return transcript['text'] if transcript else None
+        with open(audio_file_path, "rb") as audio_file:
+            response = openai.Audio.transcribe(
+                file=audio_file,
+                model="whisper-1"
+            )
+        return response.get("text", "No transcription available.")
     except Exception as e:
-        st.error(f"Failed to transcribe video using Whisper: {e}")
-        return None
-    finally:
-        # Clean up temporary files
-        import os
-        if os.path.exists("temp_audio.mp3"):
-            os.remove("temp_audio.mp3")
+        return f"Failed to transcribe audio: {e}"
             
 def summarize_transcript(transcript):
     if not transcript:
