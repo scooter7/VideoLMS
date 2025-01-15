@@ -7,6 +7,7 @@ from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, Vide
 import base64
 import json
 import yt_dlp
+import os
 
 # API configurations
 openai.api_key = st.secrets["openai"]["api_key"]
