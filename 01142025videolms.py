@@ -8,28 +8,32 @@ from googleapiclient.discovery import build
 openai.api_key = st.secrets["openai"]["api_key"]
 YOUTUBE_API_KEY = st.secrets["youtube"]["api_key"]
 
+# GitHub File URLs
+USERS_FILE_URL = "https://raw.githubusercontent.com/myusername/VideoLMS/main/UsersandScores/users.csv"
+SCORES_FILE_URL = "https://raw.githubusercontent.com/myusername/VideoLMS/main/UsersandScores/scores.csv"
+
 # Authenticate User
 def authenticate(username, password):
     if username == "james@shmooze.io" and password == "Conversations7!":
         return "admin"
     users = load_users()
-    user = users[(users['username'] == username) & (users['password'] == password)]
+    user = users[(users["username"] == username) & (users["password"] == password)]
     return "user" if not user.empty else None
 
 # Load users from GitHub
 def load_users():
-    url = "https://raw.githubusercontent.com/YOUR_REPO/VideoLMS/main/UsersandScores/users.csv"
     try:
-        return pd.read_csv(url)
-    except Exception:
+        return pd.read_csv(USERS_FILE_URL)
+    except Exception as e:
+        st.warning(f"Could not load users. Creating a new file: {e}")
         return pd.DataFrame(columns=["username", "password"])
 
 # Load quiz scores from GitHub
 def load_scores():
-    url = "https://raw.githubusercontent.com/YOUR_REPO/VideoLMS/main/UsersandScores/scores.csv"
     try:
-        return pd.read_csv(url)
-    except Exception:
+        return pd.read_csv(SCORES_FILE_URL)
+    except Exception as e:
+        st.warning(f"Could not load scores. Creating a new file: {e}")
         return pd.DataFrame(columns=["username", "video_id", "score"])
 
 # YouTube Search Functionality
@@ -45,7 +49,6 @@ def search_youtube_videos(topic, max_results=10):
     ).execute()
 
     video_ids = [item["id"]["videoId"] for item in search_response["items"]]
-
     video_details = youtube.videos().list(
         id=",".join(video_ids),
         part="snippet,contentDetails,statistics"
@@ -68,7 +71,7 @@ def search_youtube_videos(topic, max_results=10):
     return sorted(filtered_videos, key=lambda x: (-x["views"], -x["likes"], -x["comments"]))
 
 def parse_iso_duration(duration):
-    match = re.match(r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?', duration)
+    match = re.match(r"PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?", duration)
     hours = int(match.group(1)) if match.group(1) else 0
     minutes = int(match.group(2)) if match.group(2) else 0
     return hours * 60 + minutes
@@ -114,47 +117,51 @@ else:
         del st.session_state["role"]
         st.experimental_rerun()
 
-# Main Logic Based on Role
-if "username" in st.session_state:
-    if st.session_state["role"] == "admin":
-        st.sidebar.title("Admin Panel")
-        st.write("### Admin Features")
-        st.write("#### All Users")
-        st.dataframe(load_users())
-        st.write("#### Quiz Scores")
-        st.dataframe(load_scores())
+# Admin Features
+if "role" in st.session_state and st.session_state["role"] == "admin":
+    st.sidebar.title("Admin Panel")
+    st.write("### Admin Features")
+    
+    # View all users
+    st.write("#### All Users")
+    st.dataframe(load_users())
+    
+    # View quiz scores
+    st.write("#### Quiz Scores")
+    st.dataframe(load_scores())
 
-        # Add a toggle for the admin to switch to user view
-        if st.sidebar.checkbox("Switch to User Features"):
-            st.sidebar.title("Choose a Topic")
-            topic = st.sidebar.radio("Select a Topic", ["AI in Manufacturing", "AI in Healthcare", "AI in Insurance"])
+    # Toggle for switching to user view
+    if st.sidebar.checkbox("Switch to User Features"):
+        st.sidebar.title("Choose a Topic")
+        topic = st.sidebar.radio("Select a Topic", ["AI in Manufacturing", "AI in Healthcare", "AI in Insurance"])
 
-            if topic:
-                st.write(f"### Videos for {topic}")
-                with st.spinner("Searching for top videos..."):
-                    videos = search_youtube_videos(topic)
+        if topic:
+            st.write(f"### Videos for {topic}")
+            with st.spinner("Searching for top videos..."):
+                videos = search_youtube_videos(topic)
 
-                if videos:
-                    selected_videos = st.multiselect(
-                        "Select up to 5 videos to watch:",
-                        videos,
-                        format_func=lambda x: f"{x['title']} (Views: {x['views']}, Likes: {x['likes']}, Comments: {x['comments']})",
-                        key="selected_videos"
+            if videos:
+                selected_video_ids = []
+                for video in videos:
+                    st.video(video["url"])
+                    is_selected = st.checkbox(
+                        f"Select: {video['title']} (Views: {video['views']}, Likes: {video['likes']}, Comments: {video['comments']})",
+                        key=f"checkbox_{video['id']}"
                     )
+                    if is_selected:
+                        selected_video_ids.append(video["id"])
 
-                    if len(selected_videos) > 5:
-                        st.warning("You can select up to 5 videos only.")
-
-                    if st.button("Confirm Selection"):
-                        st.session_state["selected_videos"] = selected_videos
+                if st.button("Confirm Selection"):
+                    st.session_state["selected_videos"] = [video for video in videos if video["id"] in selected_video_ids]
+                    st.success("Videos selected!")
 
             if "selected_videos" in st.session_state:
+                st.write("### Selected Videos")
                 for video in st.session_state["selected_videos"]:
                     st.video(video["url"])
                     if st.button(f"I watched this video: {video['title']}", key=f"watched_{video['id']}"):
                         transcript = f"Dummy transcript for video {video['id']}."
                         summary = summarize_transcript(transcript)
                         quiz = generate_quiz_from_summary(summary)
-
                         st.write(f"**Quiz for {video['title']}**")
                         st.write(quiz)
