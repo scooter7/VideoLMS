@@ -148,39 +148,6 @@ if "username" in st.session_state:
                     if st.button("Confirm Selection"):
                         st.session_state["selected_videos"] = selected_videos
 
-                if "selected_videos" in st.session_state:
-                    for video in st.session_state["selected_videos"]:
-                        st.video(video["url"])
-                        if st.button(f"I watched this video: {video['title']}", key=f"watched_{video['id']}"):
-                            transcript = f"Dummy transcript for video {video['id']}."
-                            summary = summarize_transcript(transcript)
-                            quiz = generate_quiz_from_summary(summary)
-
-                            st.write(f"**Quiz for {video['title']}**")
-                            st.write(quiz)
-    else:
-        st.sidebar.title("Choose a Topic")
-        topic = st.sidebar.radio("Select a Topic", ["AI in Manufacturing", "AI in Healthcare", "AI in Insurance"])
-
-        if topic:
-            st.write(f"### Videos for {topic}")
-            with st.spinner("Searching for top videos..."):
-                videos = search_youtube_videos(topic)
-
-            if videos:
-                selected_videos = st.multiselect(
-                    "Select up to 5 videos to watch:",
-                    videos,
-                    format_func=lambda x: f"{x['title']} (Views: {x['views']}, Likes: {x['likes']}, Comments: {x['comments']})",
-                    key="selected_videos"
-                )
-
-                if len(selected_videos) > 5:
-                    st.warning("You can select up to 5 videos only.")
-
-                if st.button("Confirm Selection"):
-                    st.session_state["selected_videos"] = selected_videos
-
             if "selected_videos" in st.session_state:
                 for video in st.session_state["selected_videos"]:
                     st.video(video["url"])
