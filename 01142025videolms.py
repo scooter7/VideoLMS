@@ -107,10 +107,40 @@ def summarize_transcript(transcript):
     response = openai.chat.completions.create(model="gpt-4o", messages=[{"role": "user", "content": prompt}])
     return response.choices[0].message.content.strip()
 
-def generate_quiz(summary):
-    prompt = f"Generate five multiple-choice questions from this summary:\n\n{summary}"
-    response = openai.chat.completions.create(model="gpt-4o", messages=[{"role": "user", "content": prompt}])
-    return response.choices[0].message.content.strip()
+def generate_quiz_from_summary(summary):
+    """
+    Generate a 5-question multiple-choice quiz from a summary.
+    Each question will have 4 options, with one correct answer.
+    """
+    prompt = f"""
+    You are an expert quiz generator. Based on the following summary, create a 5-question multiple-choice quiz.
+    Each question should include 4 answer options, one of which is correct.
+    
+    Summary:
+    {summary}
+    
+    Example format:
+    Question: What is the capital of France?
+    A) Paris
+    B) London
+    C) Berlin
+    D) Madrid
+    Correct Answer: A) Paris
+    ---
+    """
+    try:
+        response = openai.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}],
+        )
+        if response.choices and response.choices[0].message.content:
+            # Parse the quiz from the response
+            response_text = response.choices[0].message.content.strip()
+            questions = parse_questions_from_response(response_text)
+            return questions
+    except Exception as e:
+        st.error(f"Error generating quiz: {e}")
+    return []
 
 # Ensure session state variables are initialized
 if "view_as_user" not in st.session_state:
