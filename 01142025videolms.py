@@ -71,7 +71,7 @@ def search_youtube_videos(topic, max_results=10):
 
     return sorted(videos, key=lambda x: (-x["views"], -x["likes"], -x["comments"]))
     
-    def get_video_id(url):
+def get_video_id(url):
     """Extracts video ID from a YouTube URL."""
     if "watch?v=" in url:
         return url.split("watch?v=")[1].split("&")[0]
