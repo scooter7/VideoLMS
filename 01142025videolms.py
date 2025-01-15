@@ -134,6 +134,24 @@ def parse_questions_from_response(response_text):
             questions.append(question)
     return questions
 
+# Helper Functions
+def load_users():
+    url = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/main/{USER_DATA_FILE_PATH}"
+    try:
+        return pd.read_csv(url)
+    except Exception as e:
+        st.warning(f"Could not load users. Creating a new file: {e}")
+        return pd.DataFrame(columns=["username", "password"])
+
+def save_user(username, password):
+    users = load_users()
+    if username in users["username"].values:
+        st.warning("Username already exists. Choose another username.")
+        return
+    new_user = pd.DataFrame({"username": [username], "password": [password]})
+    users = pd.concat([users, new_user], ignore_index=True)
+    upload_file_to_github(USER_DATA_FILE_PATH, users.to_csv(index=False), "Add new user")
+
 # Streamlit App
 st.sidebar.title("Login / Register")
 if st.session_state["username"] is None:
