@@ -107,18 +107,39 @@ def summarize_transcript(transcript):
     response = openai.chat.completions.create(model="gpt-4o", messages=[{"role": "user", "content": prompt}])
     return response.choices[0].message.content.strip()
 
+def parse_questions_from_response(response_text):
+    """
+    Parse OpenAI response text to extract questions, options, and correct answers.
+    """
+    questions = []
+    question_blocks = response_text.split("---")
+    for block in question_blocks:
+        lines = block.strip().split("\n")
+        if len(lines) >= 6:  # Ensure enough lines for question, options, and answer
+            question = {
+                "question": lines[0].replace("Question:", "").strip(),
+                "options": [
+                    lines[1].replace("A)", "").strip(),
+                    lines[2].replace("B)", "").strip(),
+                    lines[3].replace("C)", "").strip(),
+                    lines[4].replace("D)", "").strip(),
+                ],
+                "answer": lines[5].replace("Correct Answer:", "").strip(),
+            }
+            questions.append(question)
+    return questions
+
 def generate_quiz_from_summary(summary):
     """
     Generate a 5-question multiple-choice quiz from a summary.
-    Each question will have 4 options, with one correct answer.
     """
     prompt = f"""
-    You are an expert quiz generator. Based on the following summary, create a 5-question multiple-choice quiz.
-    Each question should include 4 answer options, one of which is correct.
-    
+    Based on the following summary, create a 5-question multiple-choice quiz.
+    Each question should include 4 options, one of which is correct.
+
     Summary:
     {summary}
-    
+
     Example format:
     Question: What is the capital of France?
     A) Paris
@@ -134,7 +155,6 @@ def generate_quiz_from_summary(summary):
             messages=[{"role": "user", "content": prompt}],
         )
         if response.choices and response.choices[0].message.content:
-            # Parse the quiz from the response
             response_text = response.choices[0].message.content.strip()
             questions = parse_questions_from_response(response_text)
             return questions
