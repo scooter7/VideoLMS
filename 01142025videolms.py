@@ -172,20 +172,29 @@ def generate_quiz_from_summary(summary):
     
     prompt = f"""
     Based on the following summary, create a 5-question multiple-choice quiz.
-    Each question should have 4 options, one of which is correct.
+    Each question must have exactly 4 options, one of which is correct.
+    Ensure all 5 questions are included in the response.
 
     Summary:
     {summary}
 
     Example format:
-    Question: What is the capital of France?
+    Question 1: What is the capital of France?
     A) Paris
     B) London
     C) Berlin
     D) Madrid
     Correct Answer: A) Paris
     ---
+    Question 2: [Your question here]
+    A) [Option A]
+    B) [Option B]
+    C) [Option C]
+    D) [Option D]
+    Correct Answer: [Correct Option]
+    ---
     """
+
     try:
         response = openai.chat.completions.create(
             model="gpt-4o",
