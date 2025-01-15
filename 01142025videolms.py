@@ -119,6 +119,12 @@ if "view_as_user" not in st.session_state:
 if "selected_videos" not in st.session_state:
     st.session_state["selected_videos"] = []
 
+if "quizzes" not in st.session_state:
+    st.session_state["quizzes"] = {}
+
+if "quiz_scores" not in st.session_state:
+    st.session_state["quiz_scores"] = {}
+
 # Streamlit App
 st.title("AI Video Quiz Generator")
 
@@ -164,43 +170,55 @@ if "username" in st.session_state and st.session_state["role"] == "admin":
         st.write("**Quiz Scores**")
         st.dataframe(load_scores())
     else:
-        # Switch to User Features
         st.write("### User Features")
 
-        # Topic Selection
-        topic = st.selectbox("Select a Topic", ["AI in Manufacturing", "AI in Healthcare", "AI in Insurance"])
-        if topic:
-            # Search Videos for Selected Topic
-            videos = search_youtube_videos(topic)
-            selected_video = st.radio("Select a Video", videos, format_func=lambda x: x["title"])
-            
-            # Display Video and Generate Quiz
-            st.video(f"https://www.youtube.com/watch?v={selected_video['id']}")
-            transcript = "Dummy transcript for the video."
-            summary = summarize_transcript(transcript)
-            quiz = generate_quiz(summary)
-
-            st.write("**Quiz Questions:**")
-            for i, question in enumerate(quiz.split("\n\n")):
-                st.write(f"**Question {i+1}:** {question}")
-
 # User Features
-if "username" in st.session_state and st.session_state["role"] == "user":
-    st.write("### User Features")
-
-    # Topic Selection
+if "username" in st.session_state:
     topic = st.selectbox("Select a Topic", ["AI in Manufacturing", "AI in Healthcare", "AI in Insurance"])
     if topic:
         # Search Videos for Selected Topic
         videos = search_youtube_videos(topic)
-        selected_video = st.radio("Select a Video", videos, format_func=lambda x: x["title"])
+        st.write(f"### Videos for {topic}")
+        for video in videos:
+            st.video(f"https://www.youtube.com/watch?v={video['id']}")
+            if st.button(f"I watched this! Quiz me! ({video['title']})", key=f"quiz_{video['id']}"):
+                transcript = f"Transcript for video {video['id']}"  # Placeholder for actual transcript ingestion
+                summary = summarize_transcript(transcript)
+                quiz = generate_quiz_from_summary(summary)
 
-        # Display Video and Generate Quiz
-        st.video(f"https://www.youtube.com/watch?v={selected_video['id']}")
-        transcript = "Dummy transcript for the video."
-        summary = summarize_transcript(transcript)
-        quiz = generate_quiz(summary)
+                # Save quiz in session state
+                st.session_state["quizzes"][video["id"]] = {
+                    "title": video["title"],
+                    "questions": quiz,
+                    "answers": [None] * 5,  # Placeholder for user answers
+                    "correct_answers": [q["answer"] for q in quiz]
+                }
 
-        st.write("**Quiz Questions:**")
-        for i, question in enumerate(quiz.split("\n\n")):
-            st.write(f"**Question {i+1}:** {question}")
+    # Display Quizzes
+    if st.session_state["quizzes"]:
+        st.write("### Take Your Quizzes")
+        for video_id, quiz_data in st.session_state["quizzes"].items():
+            st.write(f"#### Quiz for {quiz_data['title']}")
+            total_correct = 0
+            for i, question in enumerate(quiz_data["questions"]):
+                st.write(f"**Question {i + 1}:** {question['question']}")
+                user_answer = st.radio(
+                    f"Select your answer for Question {i + 1}:",
+                    options=question["options"],
+                    key=f"answer_{video_id}_{i}"
+                )
+                quiz_data["answers"][i] = user_answer
+
+                # Submit button for each quiz
+            if st.button(f"Submit Quiz ({quiz_data['title']})", key=f"submit_{video_id}"):
+                for i, correct_answer in enumerate(quiz_data["correct_answers"]):
+                    if quiz_data["answers"][i] == correct_answer:
+                        total_correct += 1
+                        st.success(f"Question {i + 1}: Correct!")
+                    else:
+                        st.error(f"Question {i + 1}: Incorrect. Correct answer: {correct_answer}")
+                st.write(f"Your Score: {total_correct} / 5")
+
+                # Save score to session state and GitHub
+                st.session_state["quiz_scores"][video_id] = total_correct
+                save_score(st.session_state["username"], video_id, total_correct)
