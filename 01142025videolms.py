@@ -249,7 +249,7 @@ if st.session_state["username"]:
         if st.button("Confirm Selected Videos"):
             st.session_state["confirmed_videos"] = st.session_state["selected_videos"]
 
-    # Display confirmed videos and allow users to generate quizzes
+# Display confirmed videos and allow users to generate quizzes
 if st.session_state["confirmed_videos"]:
     st.write("### Confirmed Videos")
     for idx, video in enumerate(st.session_state["confirmed_videos"]):  # Unique index for each button
@@ -275,10 +275,24 @@ if st.session_state["confirmed_videos"]:
         st.write("### Your Quizzes")
         for video_id, quiz in st.session_state["quizzes"].items():
             st.write(f"#### Quiz for Video ID: {video_id}")
-            for q in quiz:
+            for q_idx, q in enumerate(quiz):
+                # Display question and options
                 st.write(f"**Question:** {q['question']}")
-                st.write(f"A) {q['options'][0]}")
-                st.write(f"B) {q['options'][1]}")
-                st.write(f"C) {q['options'][2]}")
-                st.write(f"D) {q['options'][3]}")
-                st.write(f"**Correct Answer:** {q['answer']}")
+                user_answer = st.radio(
+                    f"Select your answer for Question {q_idx + 1}:",
+                    options=[
+                        f"A) {q['options'][0]}",
+                        f"B) {q['options'][1]}",
+                        f"C) {q['options'][2]}",
+                        f"D) {q['options'][3]}",
+                    ],
+                    key=f"{video_id}_q{q_idx}"
+                )
+
+                # Check answer
+                if st.button(f"Submit Answer for Question {q_idx + 1}", key=f"{video_id}_submit_q{q_idx}"):
+                    correct_answer = q["answer"]
+                    if user_answer.startswith(correct_answer):
+                        st.success(f"Correct! The answer is {correct_answer}.")
+                    else:
+                        st.error(f"Incorrect! The correct answer is {correct_answer}.")
