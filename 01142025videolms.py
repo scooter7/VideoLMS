@@ -36,7 +36,42 @@ if "view_as_user" not in st.session_state:
     st.session_state["view_as_user"] = False
 
 # Helper Functions
-def get_video_id(url):
+def search_youtube_videos(topic, max_results=10):
+    """Searches for YouTube videos using the YouTube Data API."""
+    youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
+    search_response = youtube.search().list(
+        q=topic,
+        part="snippet",
+        type="video",
+        maxResults=max_results,
+        order="viewCount",
+        publishedAfter="2024-01-01T00:00:00Z"
+    ).execute()
+
+    video_ids = [item["id"]["videoId"] for item in search_response["items"]]
+
+    video_details = youtube.videos().list(
+        id=",".join(video_ids),
+        part="snippet,contentDetails,statistics"
+    ).execute()
+
+    videos = []
+    for video in video_details["items"]:
+        views = int(video["statistics"].get("viewCount", 0))
+        likes = int(video["statistics"].get("likeCount", 0))
+        comments = int(video["statistics"].get("commentCount", 0))
+        videos.append({
+            "id": video["id"],
+            "title": video["snippet"]["title"],
+            "url": f"https://www.youtube.com/watch?v={video['id']}",
+            "views": views,
+            "likes": likes,
+            "comments": comments
+        })
+
+    return sorted(videos, key=lambda x: (-x["views"], -x["likes"], -x["comments"]))
+    
+    def get_video_id(url):
     """Extracts video ID from a YouTube URL."""
     if "watch?v=" in url:
         return url.split("watch?v=")[1].split("&")[0]
@@ -198,7 +233,7 @@ if st.session_state["username"]:
     
     if topic:
         st.write("### Available Videos")
-        videos = search_youtube_videos(topic)
+        videos = search_youtube_videos(topic)  # Call the restored function
         
         for video in videos[:10]:
             st.video(video["url"])
