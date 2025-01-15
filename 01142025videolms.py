@@ -92,17 +92,50 @@ def fetch_video_details(api_key, video_id):
         return title, description
     return None, None
 
-def fetch_transcript(video_id):
-    """Fetches the transcript for a YouTube video."""
+def fetch_transcript(video_id: str):
+    """Fetches transcript using YouTubeTranscriptApi."""
     try:
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
-        return " ".join([entry["text"] for entry in transcript]), None
+        transcript_text = " ".join([entry['text'] for entry in transcript])
+        return transcript_text
+    except TranscriptsDisabled:
+        st.warning("Transcripts are disabled for this video.")
+        return None
     except NoTranscriptFound:
-        return None, "No transcript available for this video."
-    except VideoUnavailable:
-        return None, "Video is unavailable or restricted."
+        st.warning("No transcript found for this video.")
+        return None
     except Exception as e:
-        return None, f"Error fetching transcript: {str(e)}"
+        st.error(f"Failed to fetch transcript: {e}")
+        return None
+
+def transcribe_with_whisper(video_url: str):
+    """Transcribes video using Whisper."""
+    try:
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'outtmpl': 'temp_audio.%(ext)s',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([video_url])
+        
+        transcript = None
+        with open("temp_audio.mp3", "rb") as audio_file:
+            transcript = openai.Audio.transcribe("whisper-1", audio_file)
+        
+        return transcript['text'] if transcript else None
+    except Exception as e:
+        st.error(f"Failed to transcribe video using Whisper: {e}")
+        return None
+    finally:
+        # Clean up temporary files
+        import os
+        if os.path.exists("temp_audio.mp3"):
+            os.remove("temp_audio.mp3")
 
 def summarize_transcript(transcript):
     if not transcript:
@@ -229,33 +262,46 @@ if st.session_state["role"] == "admin" and not st.session_state["view_as_user"]:
 
 # User Area
 if st.session_state["username"]:
+    # Topic Selection
     topic = st.selectbox("Select a Topic", ["AI in Manufacturing", "AI in Healthcare", "AI in Insurance"])
     
     if topic:
         st.write("### Available Videos")
         videos = search_youtube_videos(topic)
         
+        # Display videos and selection checkboxes
         for video in videos[:10]:
             st.video(video["url"])
             checked = st.checkbox(f"Select {video['title']}", key=f"select_{video['id']}")
             
+            # Add or remove selected videos
             if checked:
-                st.session_state["selected_videos"].append(video)
+                if video not in st.session_state["selected_videos"]:
+                    st.session_state["selected_videos"].append(video)
             else:
                 st.session_state["selected_videos"] = [
                     v for v in st.session_state["selected_videos"] if v["id"] != video["id"]
                 ]
 
-        if st.button("Confirm Selected Videos"):
+        # Confirm selected videos
+        if st.button("Confirm Selected Videos", key="confirm_videos"):
             st.session_state["confirmed_videos"] = st.session_state["selected_videos"]
 
-# Display confirmed videos and allow users to generate quizzes
+# Display confirmed videos and allow quiz generation
 if st.session_state["confirmed_videos"]:
     st.write("### Confirmed Videos")
     for idx, video in enumerate(st.session_state["confirmed_videos"]):
         st.video(video["url"])
         if st.button(f"I watched this! Quiz me! ({video['title']})", key=f"quiz_{video['id']}_{idx}"):
-            transcript, error = fetch_transcript(video["id"])
+            # Try fetching transcript
+            transcript = fetch_transcript(video["id"])
+            
+            # Use Whisper if no transcript available
+            if not transcript:
+                st.info("Fetching transcript using Whisper...")
+                transcript = transcribe_with_whisper(video["url"])
+            
+            # Generate quiz if transcript is available
             if transcript:
                 summary = summarize_transcript(transcript)
                 if summary:
@@ -268,39 +314,37 @@ if st.session_state["confirmed_videos"]:
                 else:
                     st.error("Failed to summarize the transcript.")
             else:
-                st.warning(error)
+                st.error("Failed to fetch or generate a transcript.")
 
 # Display generated quizzes
-for video_id, quiz in st.session_state["quizzes"].items():
-    st.write(f"#### Quiz for Video ID: {video_id}")
-    
-    for q_idx, q in enumerate(quiz):
-        # Display question
-        st.write(f"**Question {q_idx + 1}:** {q['question']}")
+if st.session_state["quizzes"]:
+    st.write("### Your Quizzes")
+    for video_id, quiz in st.session_state["quizzes"].items():
+        st.write(f"#### Quiz for Video ID: {video_id}")
+        
+        for q_idx, q in enumerate(quiz):
+            # Display question and options
+            st.write(f"**Question {q_idx + 1}:** {q['question']}")
+            user_answer = st.radio(
+                f"Select your answer for Question {q_idx + 1}:",
+                options=[
+                    f"A) {q['options'][0]}",
+                    f"B) {q['options'][1]}",
+                    f"C) {q['options'][2]}",
+                    f"D) {q['options'][3]}"
+                ],
+                key=f"{video_id}_q{q_idx}_radio"
+            )
 
-        # Display options with unique keys for each question
-        user_answer = st.radio(
-            f"Select your answer for Question {q_idx + 1}:",
-            options=[
-                f"A) {q['options'][0]}",
-                f"B) {q['options'][1]}",
-                f"C) {q['options'][2]}",
-                f"D) {q['options'][3]}"
-            ],
-            key=f"{video_id}_q{q_idx}_radio"
-        )
+            # Check answer when submitted
+            if st.button(f"Submit Answer for Question {q_idx + 1}", key=f"{video_id}_submit_q{q_idx}"):
+                correct_answer = q["answer"]
+                if user_answer.split(")")[0] == correct_answer.split(")")[0]:
+                    st.success(f"Correct! The answer is {correct_answer}.")
+                else:
+                    st.error(f"Incorrect! The correct answer is {correct_answer}.")
 
-        # Check answer when submitted
-        if st.button(f"Submit Answer for Question {q_idx + 1}", key=f"{video_id}_submit_q{q_idx}"):
-            correct_answer = q["answer"]
-            # Compare the user's choice with the correct answer
-            if user_answer.split(")")[0] == correct_answer.split(")")[0]:
-                st.success(f"Correct! The answer is {correct_answer}.")
-            else:
-                st.error(f"Incorrect! The correct answer is {correct_answer}.")
-
-# Remove st.experimental_rerun()
-# Use st.session_state.clear() for logout functionality if needed
+# Logout functionality
 if st.sidebar.button("Logout", key="logout_button"):
     st.session_state.clear()
     st.sidebar.success("Logged out successfully!")
