@@ -6,6 +6,7 @@ from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, VideoUnavailable, TranscriptsDisabled
 import base64
 import json
+import yt_dlp
 
 # API configurations
 openai.api_key = st.secrets["openai"]["api_key"]
